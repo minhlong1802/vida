@@ -8,6 +8,7 @@ import java.util.Date;
 public class DateUtils {
 
     private static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd";
+    private static final SimpleDateFormat DEFAULT_FORMATTER = new SimpleDateFormat(DEFAULT_DATE_FORMAT);
 
     public static Date parseDate(String dateStr) throws ParseException {
         return null;
@@ -39,5 +40,22 @@ public class DateUtils {
 
     public static Date getCurrentDate() {
         return null;
+    }
+
+    public static Date setTime(Date date, int hours, int minutes, int seconds) {
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(date);
+        cal.set(Calendar.HOUR_OF_DAY, hours);
+        cal.set(Calendar.MINUTE, minutes);
+        cal.set(Calendar.SECOND, seconds);
+        cal.set(Calendar.MILLISECOND, 0);
+        return cal.getTime();
+    }
+    public static String dateToString(Date date, String format) {
+        if (date == null) {
+            return "";
+        }
+        SimpleDateFormat sdf = new SimpleDateFormat(format);
+        return sdf.format(date);
     }
 }
