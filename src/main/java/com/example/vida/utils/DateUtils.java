@@ -8,7 +8,6 @@ import java.util.Date;
 public class DateUtils {
 
     private static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd";
-    private static final SimpleDateFormat DEFAULT_FORMATTER = new SimpleDateFormat(DEFAULT_DATE_FORMAT);
 
     public static Date parseDate(String dateStr) throws ParseException {
         return null;
@@ -52,10 +51,10 @@ public class DateUtils {
         return cal.getTime();
     }
     public static String dateToString(Date date, String format) {
-        if (date == null) {
+        try {
+            return new SimpleDateFormat(format).format(date);
+        } catch (Exception e) {
             return "";
         }
-        SimpleDateFormat sdf = new SimpleDateFormat(format);
-        return sdf.format(date);
     }
 }
