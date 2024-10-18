@@ -1,8 +1,16 @@
 package com.example.vida.dto.response;
 
-import lombok.AllArgsConstructor;
+import java.io.Serializable;
 
-@AllArgsConstructor
-public class LoginResponse {
-    private String token;
+public class LoginResponse implements Serializable {
+    private static final long serialVersionUID = -8091879091924046844L;
+    private final String token;
+
+    public LoginResponse(String token) {
+        this.token = token;
+    }
+
+    public String getToken() {
+        return this.token;
+    }
 }

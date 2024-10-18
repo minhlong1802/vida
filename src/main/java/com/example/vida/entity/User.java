@@ -24,9 +24,9 @@ public class User {
     private String phoneNumber;
     private String cardId;
     private LocalDateTime createdAt;
-    private int creatorId;
+    private Integer creatorId;
     private String creatorName;
     private LocalDateTime updatedAt;
-    private int updatorId;
+    private Integer updatorId;
     private String updatorName;
 }
