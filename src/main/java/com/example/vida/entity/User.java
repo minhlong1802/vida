@@ -1,14 +1,15 @@
 package com.example.vida.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.Getter;
+import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "user")
+@AllArgsConstructor
+@NoArgsConstructor
 @Data
 public class User {
     @Id
@@ -28,7 +29,7 @@ public class User {
     private Integer departmentId;
 
     @Column(nullable = false)
-    private Boolean status = true;
+    private Integer status = true;
 
     @Column(nullable = false)
     private LocalDate dob;
