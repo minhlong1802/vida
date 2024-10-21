@@ -1,15 +1,16 @@
 package com.example.vida.utils;
 
-import org.springframework.security.core.userdetails.UserDetails;
+
+import com.example.vida.dto.response.UserDto;
 
 public class UserContext {
-    private static final ThreadLocal<UserDetails> userHolder = new ThreadLocal<>();
+    private static final ThreadLocal<UserDto> userHolder = new ThreadLocal<>();
 
-    public static void setUser(UserDetails userDetails) {
-        userHolder.set(userDetails);
+    public static void setUser(UserDto userDto) {
+        userHolder.set(userDto);
     }
 
-    public static UserDetails getUser() {
+    public static UserDto getUser() {
         return userHolder.get();
     }
 

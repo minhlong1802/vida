@@ -1,5 +1,6 @@
 package com.example.vida.service.impl;
 
+import com.example.vida.dto.response.UserDto;
 import com.example.vida.entity.User;
 import com.example.vida.exception.UserNotFoundException;
 import com.example.vida.repository.UserRepository;
@@ -20,14 +21,12 @@ public class UserServiceImpl implements UserDetailsService {
         this.userRepository = userRepository;
     }
     @Override
-    public UserDetails loadUserByUsername(String username) throws UserNotFoundException {
-
-         User user = userRepository.findByUsername(username);
+    public UserDto loadUserByUsername(String username) throws UserNotFoundException {
+        User user = userRepository.findByUsername(username);
         if (user == null) {
             throw new UserNotFoundException("User not found with username: " + username);
         }
-        return new org.springframework.security.core.userdetails.User(user.getUsername(), user.getPassword(),
-                new ArrayList<>());
+        return new UserDto(user.getId(), user.getUsername(), user.getPassword(), new ArrayList<>());
     }
     public UserDetails getUserByEmailAndPassword(String email, String password){
         User user = userRepository.findUserByEmailAndPassword(email, password);
