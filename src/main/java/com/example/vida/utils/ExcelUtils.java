@@ -38,26 +38,6 @@ public class ExcelUtils {
         }
     }
 
-    public static void addRow(Sheet sheet, List<String> rowData) {
-        int rowNum = sheet.getLastRowNum() + 1;
-        Row row = sheet.createRow(rowNum);
-        for (int i = 0; i < rowData.size(); i++) {
-            Cell cell = row.createCell(i);
-            cell.setCellValue(rowData.get(i));
-        }
-    }
-
-    public static void addColumn(Sheet sheet, List<String> colData) {
-        for (int i = 0; i < colData.size(); i++) {
-            Row row = sheet.getRow(i);
-            if (row == null) {
-                row = sheet.createRow(i);
-            }
-            Cell cell = row.createCell(row.getLastCellNum() == -1 ? 0 : row.getLastCellNum());
-            cell.setCellValue(colData.get(i));
-        }
-    }
-
     public static void updateCell(Sheet sheet, int rowIndex, int colIndex, String newValue) {
         Row row = sheet.getRow(rowIndex);
         if (row == null) {
@@ -68,19 +48,6 @@ public class ExcelUtils {
             cell = row.createCell(colIndex);
         }
         cell.setCellValue(newValue);
-    }
-
-    public static void deleteRow(Sheet sheet, int rowIndex) {
-        int lastRowNum = sheet.getLastRowNum();
-        if (rowIndex >= 0 && rowIndex < lastRowNum) {
-            sheet.shiftRows(rowIndex + 1, lastRowNum, -1);
-        }
-        if (rowIndex == lastRowNum) {
-            Row removingRow = sheet.getRow(rowIndex);
-            if (removingRow != null) {
-                sheet.removeRow(removingRow);
-            }
-        }
     }
 
     public static void deleteColumn(Sheet sheet, int colIndex) {
@@ -102,12 +69,5 @@ public class ExcelUtils {
             cell = row.createCell(colIndex);
         }
         cell.setCellStyle(style);
-    }
-
-    public static void autoSizeColumns(Sheet sheet) {
-        int numberOfColumns = sheet.getRow(0).getPhysicalNumberOfCells();
-        for (int i = 0; i < numberOfColumns; i++) {
-            sheet.autoSizeColumn(i);
-        }
     }
 }
