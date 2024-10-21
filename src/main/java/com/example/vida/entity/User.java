@@ -29,7 +29,7 @@ public class User {
     private Integer departmentId;
 
     @Column(nullable = false)
-    private Integer status = true;
+    private Integer status;
 
     @Column(nullable = false)
     private LocalDate dob;
@@ -37,9 +37,8 @@ public class User {
     @Column(name = "phone_number", length = 10)
     private String phoneNumber;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Gender gender;
+    private String gender;
 
     @Column(name = "employee_id", length = 10)
     private String employeeId;
@@ -65,17 +64,17 @@ public class User {
     @Column(name = "updator_name", length = 20)
     private String updatorName;
 
-    @Getter
-    public enum Gender {
-        MALE("Male"),
-        FEMALE("Female"),
-        OTHER("Other");
-
-        private final String value;
-
-        Gender(String value) {
-            this.value = value;
-        }
-
-    }
+//    @Getter
+//    public enum Gender {
+//        MALE("Male"),
+//        FEMALE("Female"),
+//        OTHER("Other");
+//
+//        private final String value;
+//
+//        Gender(String value) {
+//            this.value = value;
+//        }
+//
+//    }
 }

@@ -1,12 +1,10 @@
 package com.example.vida.dto;
 
-import com.example.vida.entity.User;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.*;
 import lombok.Data;
-import lombok.Getter;
 
 import java.io.Serializable;
 import java.time.LocalDate;
@@ -40,7 +38,7 @@ public class CreateUserDto implements Serializable {
     private String phoneNumber;
 
     @NotNull(message = "Gender is required")
-    private User.Gender gender;
+    private String gender;
 
     @Size(max = 10, message = "Employee ID must not exceed 10 characters")
     private String employeeId;
@@ -49,18 +47,20 @@ public class CreateUserDto implements Serializable {
     @JsonAlias("card_id")
     private String cardId;
 
+    private Integer status;
 
-    @Getter
-    public enum Gender {
-        MALE("Male"),
-        FEMALE("Female"),
-        OTHER("Other");
 
-        private final String value;
-
-        Gender(String value) {
-            this.value = value;
-        }
-
-    }
+//    @Getter
+//    public enum Gender {
+//        MALE("Male"),
+//        FEMALE("Female"),
+//        OTHER("Other");
+//
+//        private final String value;
+//
+//        Gender(String value) {
+//            this.value = value;
+//        }
+//
+//    }
 }
