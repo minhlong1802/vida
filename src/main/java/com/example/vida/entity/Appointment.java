@@ -1,30 +1,80 @@
 package com.example.vida.entity;
 
-import lombok.Getter;
-import lombok.Setter;
+import com.example.vida.enums.RecurrencePattern;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
-@Setter
-@Getter
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.HashSet;
+import java.util.Set;
+
+@Entity
+@Table(name = "appointment")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class Appointment {
-    private String id;
-    private String name;
-    private String email;
-    private String phone;
-    private String date;
-    private String time;
-    private String status;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
 
-    public Appointment() {
-    }
+    @Column(name = "title", length = 50, nullable = false)
+    private String title;
 
-    public Appointment(String id, String name, String email, String phone, String date, String time, String status) {
-        this.id = id;
-        this.name = name;
-        this.email = email;
-        this.phone = phone;
-        this.date = date;
-        this.time = time;
-        this.status = status;
-    }
+    @ManyToOne
+    @JoinColumn(name = "room_id")
+//    @JsonBackReference
+    private Room room;
 
+    @Column(name = "date", nullable = false)
+    private LocalDate date;
+
+    @Column(name = "start_time", nullable = false)
+    private LocalTime startTime;
+
+    @Column(name = "end_time", nullable = false)
+    private LocalTime endTime;
+
+    @Column(name = "content_brief", columnDefinition = "TEXT")
+    private String contentBrief;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "recurrence_pattern", nullable = false)
+    private RecurrencePattern recurrencePattern = RecurrencePattern.Only;
+
+    @Column(name = "recurrence_end_date")
+    private LocalDate recurrenceEndDate;
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "creator_id")
+    private Integer creatorId;
+
+    @Column(name = "creator_name", length = 20)
+    private String creatorName;
+
+    @Column(name = "updator_id")
+    private Integer updatorId;
+
+    @Column(name = "updator_name", length = 20)
+    private String updatorName;
+    @ManyToMany
+    @JoinTable(
+            name = "user_appointment",
+            joinColumns = @JoinColumn(name = "appointment_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    private Set<User> users = new HashSet<>();
 }
