@@ -8,6 +8,6 @@ import com.example.vida.dto.response.UserResponse;
 
 public interface UserService {
     UserDetails getUserByEmailAndPassword(String email, String password);
-    User createUser(CreateUserDto createUserDto);
+    UserResponse createUser(CreateUserDto createUserDto);
     UserResponse updateUser(Integer id, UpdateUserRequest request);
 }

@@ -14,15 +14,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import com.example.vida.dto.request.UpdateUserRequest;
 import com.example.vida.dto.response.UserResponse;
-import com.example.vida.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+
 
 @RestController
 @CrossOrigin
@@ -72,7 +69,7 @@ public class UserController {
             if (bindingResult.hasErrors()) {
                 return new ResponseEntity<>(bindingResult.getAllErrors(), HttpStatus.BAD_REQUEST);
             }
-            User createdUser = userService.createUser(createUserDto);
+            UserResponse createdUser = userService.createUser(createUserDto);
             return new ResponseEntity<>(createdUser, HttpStatus.CREATED);
         } catch (Exception e) {
             return new ResponseEntity<>("Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);

@@ -19,6 +19,9 @@ public class UserResponse {
     private String cardId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Integer creatorId;
     private String creatorName;
+    private Integer updatorId;
     private String updatorName;
+
 }

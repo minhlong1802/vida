@@ -38,7 +38,8 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public User createUser(CreateUserDto createUserDto) {
+    public UserResponse createUser(CreateUserDto createUserDto) {
+        UserResponse userResponse = new UserResponse();
         validateNewUser(createUserDto);
 
         User user = new User();
@@ -51,7 +52,9 @@ public class UserServiceImpl implements UserService {
         user.setCreatorName(UserContext.getUser().getUsername());
         user.setUpdatorId(UserContext.getUser().getUserId());
         user.setUpdatorName(UserContext.getUser().getUsername());
-        return userRepository.save(user);
+        User createdUser=userRepository.save(user);
+        // map tu entity to response
+        return mapUserToResponse(createdUser);
     }
 
     private void validateNewUser(CreateUserDto createUserDto) {
@@ -71,8 +74,8 @@ public class UserServiceImpl implements UserService {
         updateUserFromRequest(user, request);
 
         user.setUpdatedAt(LocalDateTime.now());
-        user.setUpdatorId(1); // Assuming the updator ID is 1, you might want to get this from authenticated user
-        user.setUpdatorName("Admin"); // Assuming the updator name is Admin, you might want to get this from authenticated user
+        user.setUpdatorId(UserContext.getUser().getUserId()); // Assuming the updator ID is 1, you might want to get this from authenticated user
+        user.setUpdatorName(UserContext.getUser().getUsername()); // Assuming the updator name is Admin, you might want to get this from authenticated user
 
         User updatedUser = userRepository.save(user);
         return mapUserToResponse(updatedUser);
@@ -104,6 +107,8 @@ public class UserServiceImpl implements UserService {
         response.setCardId(user.getCardId());
         response.setCreatedAt(user.getCreatedAt());
         response.setUpdatedAt(user.getUpdatedAt());
+        response.setCreatorId(user.getCreatorId());
+        response.setUpdatorId(user.getUpdatorId());
         response.setCreatorName(user.getCreatorName());
         response.setUpdatorName(user.getUpdatorName());
         return response;
