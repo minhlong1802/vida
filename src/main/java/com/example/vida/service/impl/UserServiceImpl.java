@@ -95,16 +95,7 @@ public class UserServiceImpl implements UserService {
 
     private UserResponse mapUserToResponse(User user) {
         UserResponse response = new UserResponse();
-        response.setId(user.getId());
-        response.setUsername(user.getUsername());
-        response.setEmail(user.getEmail());
-        response.setDepartmentId(user.getDepartmentId());
-        response.setStatus(user.getStatus());
-        response.setDob(user.getDob());
-        response.setPhoneNumber(user.getPhoneNumber());
-        response.setGender(user.getGender());
-        response.setEmployeeId(user.getEmployeeId());
-        response.setCardId(user.getCardId());
+        BeanUtils.copyProperties(user, response);
         response.setCreatedAt(user.getCreatedAt());
         response.setUpdatedAt(user.getUpdatedAt());
         response.setCreatorId(user.getCreatorId());
