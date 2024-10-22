@@ -7,9 +7,17 @@ import com.example.vida.entity.User;
 import com.example.vida.service.UserService;
 import com.example.vida.utils.JwtTokenUtils;
 import com.example.vida.utils.UserContext;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import com.example.vida.dto.request.UpdateUserRequest;
+import com.example.vida.dto.response.UserResponse;
+import com.example.vida.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.validation.BindingResult;
@@ -20,18 +28,20 @@ import org.springframework.web.bind.annotation.*;
 @CrossOrigin
 public class UserController {
 
-    @Autowired
+    @Setter
+    @Getter
     private AuthenticationManager authenticationManager;
 
     private final UserService userService;
 
     @Autowired
-    public UserController(UserService userService) {
+    public UserController(UserService userService, AuthenticationManager authenticationManager, JwtTokenUtils jwtTokenUtil) {
         this.userService = userService;
+        this.authenticationManager = authenticationManager;
+        this.jwtTokenUtil = jwtTokenUtil;
     }
 
-    @Autowired
-    private JwtTokenUtils jwtTokenUtil;
+    private final JwtTokenUtils jwtTokenUtil;
 
 
     @RequestMapping(value = "/api/auth/login", method = RequestMethod.POST)
@@ -53,8 +63,7 @@ public class UserController {
     //Example for using UserContext
     @GetMapping( "/hello")
     public int hello() {
-        int userId = UserContext.getUser().getUserId();
-        return userId;
+        return UserContext.getUser().getUserId();
     }
 
     @PostMapping("api/users")
@@ -69,4 +78,10 @@ public class UserController {
             return new ResponseEntity<>("Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+    @PutMapping("api/users/{id}")
+    public ResponseEntity<UserResponse> updateUser(@PathVariable Integer id, @RequestBody UpdateUserRequest request) {
+        UserResponse updatedUser = userService.updateUser(id, request);
+        return ResponseEntity.ok(updatedUser);
+    }
+
 }
