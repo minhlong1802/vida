@@ -18,11 +18,12 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.List;
-import java.util.Set;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -41,25 +42,63 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     public Appointment createAppointment(CreateAppointmentDto createAppointmentDto) {
         validateAppointmentData(createAppointmentDto);
+        // Validate room availability
+        validateRoomAvailability(createAppointmentDto);
 
-        // Tạo appointment mới
+        List<Appointment> appointments = new ArrayList<>();
+
+        // Create base appointment
+        Appointment baseAppointment = createBaseAppointment(createAppointmentDto);
+
+        // Handle recurring appointments
+        if (baseAppointment.getRecurrencePattern() != null) {
+            switch (baseAppointment.getRecurrencePattern()) {
+                case Daily:
+                    appointments.addAll(createDailyAppointments(baseAppointment));
+                    break;
+                case Weekly:
+                    List<String> errors = new ArrayList<>();
+                    List<DayOfWeek> weeklyDays = convertToDayOfWeek(createAppointmentDto.getWeeklyDay(), errors);
+                    if (!errors.isEmpty()) {
+                        throw new IllegalArgumentException(String.join(", ", errors));
+                    }
+                    appointments.addAll(createWeeklyAppointments(baseAppointment, createAppointmentDto.getWeeklyDay()));
+                    break;
+                case Only:
+                    appointments.add(baseAppointment);
+                    break;
+            }
+        } else {
+            appointments.add(baseAppointment);
+        }
+
+        // Save all appointments
+        appointmentRepository.saveAll(appointments);
+
+        return baseAppointment; // Return the original appointment
+    }
+
+    private Appointment createBaseAppointment(CreateAppointmentDto createAppointmentDto) {
         Appointment appointment = new Appointment();
-        BeanUtils.copyProperties(createAppointmentDto,appointment);
+        BeanUtils.copyProperties(createAppointmentDto, appointment);
+
+        // Set room
         if (createAppointmentDto.getRoomId() != null) {
             Room room = roomRepository.findById(createAppointmentDto.getRoomId())
                     .orElseThrow(() -> new RuntimeException("Room not found"));
             appointment.setRoom(room);
-        } else {
-            appointment.setRoom(null);
         }
-        appointment.setCreatedAt(LocalDateTime.now());
-        appointment.setUpdatedAt(LocalDateTime.now());
+
+        // Set audit fields
+        LocalDateTime now = LocalDateTime.now();
+        appointment.setCreatedAt(now);
+        appointment.setUpdatedAt(now);
         appointment.setCreatorId(UserContext.getUser().getUserId());
         appointment.setCreatorName(UserContext.getUser().getUsername());
         appointment.setUpdatorId(UserContext.getUser().getUserId());
         appointment.setUpdatorName(UserContext.getUser().getUsername());
 
-        // Thêm users vào appointment
+        // Set users
         if (createAppointmentDto.getUserIds() != null && !createAppointmentDto.getUserIds().isEmpty()) {
             Set<User> users = createAppointmentDto.getUserIds().stream()
                     .map(userId -> userRepository.findById(userId)
@@ -68,18 +107,65 @@ public class AppointmentServiceImpl implements AppointmentService {
             appointment.setUsers(users);
         }
 
-        // Lưu appointment
-        appointment = appointmentRepository.save(appointment);
-//        List<Appointment> appointments = new ArrayList<>();
-//        appointmentRepository.saveAll(appointments);
-        log.info("Created new appointment with id: {}", appointment.getId());
-
         return appointment;
+    }
+
+    private List<Appointment> createDailyAppointments(Appointment baseAppointment) {
+        List<Appointment> appointments = new ArrayList<>();
+        LocalDate startDate = baseAppointment.getDate();
+        LocalDate endDate = baseAppointment.getRecurrenceEndDate();
+
+        while (!startDate.isAfter(endDate)) {
+            Appointment newAppointment = cloneAppointment(baseAppointment);
+            newAppointment.setDate(startDate);
+            newAppointment.setRecurrencePattern(RecurrencePattern.Only);
+            appointments.add(newAppointment);
+            startDate = startDate.plusDays(1);
+        }
+
+        return appointments;
+    }
+
+    private List<Appointment> createWeeklyAppointments(Appointment baseAppointment, List<DayOfWeek> weeklyDays) {
+        List<Appointment> appointments = new ArrayList<>();
+        LocalDate startDate = baseAppointment.getDate();
+        LocalDate endDate = baseAppointment.getRecurrenceEndDate();
+
+        while (!startDate.isAfter(endDate)) {
+            if (weeklyDays.contains(startDate.getDayOfWeek())) {
+                Appointment newAppointment = cloneAppointment(baseAppointment);
+                newAppointment.setDate(startDate);
+                newAppointment.setRecurrencePattern(RecurrencePattern.Only);
+                appointments.add(newAppointment);
+            }
+            startDate = startDate.plusDays(1);
+        }
+
+        return appointments;
+    }
+
+    private Appointment cloneAppointment(Appointment original) {
+        Appointment clone = new Appointment();
+        BeanUtils.copyProperties(original, clone);
+        clone.setId(null); // Ensure new ID is generated
+        clone.setCreatedAt(LocalDateTime.now());
+        clone.setUpdatedAt(LocalDateTime.now());
+
+        // Clone relationships
+        if (original.getRoom() != null) {
+            clone.setRoom(original.getRoom());
+        }
+        if (original.getUsers() != null) {
+            clone.setUsers(new HashSet<>(original.getUsers()));
+        }
+
+        return clone;
     }
 
     private void validateAppointmentData(CreateAppointmentDto appointmentDto) {
         // 1. Time validations
         LocalDate currentDate = LocalDate.now();
+        List<String> errors = new ArrayList<>();
 
         // Check if appointment date is in the past
         if (appointmentDto.getDate().isBefore(currentDate)) {
@@ -98,7 +184,9 @@ public class AppointmentServiceImpl implements AppointmentService {
                 throw new IllegalArgumentException("Recurrence end date must be after appointment date");
             }
         }
-
+        if (appointmentDto.getRecurrencePattern() != null) {
+            validateRecurrencePattern(appointmentDto, errors);
+        }
         // 2. Conflict validations
         List<Appointment> existingAppointments = appointmentRepository
                 .findByDateAndStartTimeGreaterThanEqual(
@@ -124,5 +212,187 @@ public class AppointmentServiceImpl implements AppointmentService {
             LocalTime start1, LocalTime end1,
             LocalTime start2, LocalTime end2) {
         return !start1.isAfter(end2) && !end1.isBefore(start2);
+    }
+    private void validateRecurrencePattern(CreateAppointmentDto dto, List<String> errors) {
+        if (dto.getRecurrencePattern() == null) {
+            errors.add("RecurrencePattern must enum 'daily, only, weekly'");
+            return;
+        }
+
+        try {
+            RecurrencePattern.valueOf(dto.getRecurrencePattern().toString());
+        } catch (IllegalArgumentException e) {
+            errors.add("RecurrencePattern must enum 'daily, only, weekly'");
+            return;
+        }
+
+        switch (dto.getRecurrencePattern()) {
+            case Daily:
+                validateDailyRecurrence(dto, errors);
+                break;
+            case Weekly:
+                validateWeeklyRecurrence(dto, errors);
+                break;
+            case Only:
+                validateSingleRecurrence(dto, errors);
+                break;
+            default:
+                errors.add("Invalid recurrence pattern");
+        }
+    }
+
+    private void validateDailyRecurrence(CreateAppointmentDto dto, List<String> errors) {
+        // Validate recurrence end date is required
+        if (dto.getRecurrenceEndDate() == null) {
+            errors.add("Recurrence end date is required for daily pattern");
+            return;
+        }
+
+        // Validate recurrence end date is not before start date
+        if (dto.getDate() != null && dto.getRecurrenceEndDate().isBefore(dto.getDate())) {
+            errors.add("Recurrence end date must be after or equal to start date");
+        }
+
+        // Validate maximum recurrence period (e.g., 1 year)
+        if (dto.getDate() != null) {
+            long daysBetween = ChronoUnit.DAYS.between(dto.getDate(), dto.getRecurrenceEndDate());
+            if (daysBetween > 365) { // You can adjust this limit as needed
+                errors.add("Daily recurrence period cannot exceed 1 year");
+            }
+        }
+    }
+
+    private void validateWeeklyRecurrence(CreateAppointmentDto dto, List<String> errors) {
+        // Validate recurrence end date is required
+        if (dto.getRecurrenceEndDate() == null) {
+            errors.add("Recurrence end date is required for weekly pattern");
+            return;
+        }
+
+        // Validate recurrence end date is not before start date
+        if (dto.getDate() != null && dto.getRecurrenceEndDate().isBefore(dto.getDate())) {
+            errors.add("Recurrence end date must be after or equal to start date");
+        }
+
+        // Validate weekly days are specified
+        if (dto.getWeeklyDay() == null || dto.getWeeklyDay().isEmpty()) {
+            errors.add("At least one day of week must be selected for weekly pattern");
+        } else {
+            try {
+                // Convert and validate weeklyDays
+                List<DayOfWeek> validatedWeeklyDays = new ArrayList<>();
+                for (String day : dto.getWeeklyDay()) {
+                    if (day == null || day.trim().isEmpty()) {
+                        errors.add("weeklyDay must be day of week");
+                        continue;
+                    }
+
+                    try {
+                        // Convert to uppercase and parse
+                        String upperDay = day.trim().toUpperCase();
+                        DayOfWeek dayOfWeek = DayOfWeek.valueOf(upperDay);
+                        validatedWeeklyDays.add(dayOfWeek);
+                    } catch (IllegalArgumentException e) {
+                        errors.add("weeklyDay must be day of week");
+                    }
+                }
+
+                // Check for duplicates
+                if (validatedWeeklyDays.size() != new HashSet<>(validatedWeeklyDays).size()) {
+                    errors.add("Duplicate days of week are not allowed");
+                }
+
+                // If validation passed, update the DTO with converted values
+                if (errors.isEmpty()) {
+                    dto.setWeeklyDay(validatedWeeklyDays.stream()
+                            .map(DayOfWeek::name)
+                            .collect(Collectors.toList()));
+                }
+
+            } catch (Exception e) {
+                errors.add("weeklyDay must be day of week");
+            }
+        }
+    }
+
+    private void validateSingleRecurrence(CreateAppointmentDto dto, List<String> errors) {
+        // For ONLY pattern, recurrence end date should not be set
+        if (dto.getRecurrenceEndDate() != null) {
+            errors.add("Recurrence end date should not be set for single appointments");
+        }
+
+        // Weekly days should not be set
+        if (dto.getWeeklyDay() != null && !dto.getWeeklyDay().isEmpty()) {
+            errors.add("Weekly days should not be set for single appointments");
+        }
+    }
+
+    private void validateRoomAvailability(CreateAppointmentDto dto) {
+        if (dto.getRoomId() == null) {
+            return; // Skip validation if no room is selected
+        }
+
+        LocalDate startDate = dto.getDate();
+        LocalDate endDate = dto.getRecurrencePattern() != RecurrencePattern.Only
+                ? dto.getRecurrenceEndDate()
+                : dto.getDate();
+
+        List<Appointment> existingAppointments;
+
+        switch (dto.getRecurrencePattern()) {
+            case Daily:
+                // Check each day between start and end date
+                existingAppointments = appointmentRepository
+                        .findOverlappingAppointments(
+                                dto.getRoomId(),
+                                startDate,
+                                endDate,
+                                dto.getStartTime(),
+                                dto.getEndTime()
+                        );
+                break;
+
+            case Weekly:
+                // Check only on specified days of week between start and end date
+                existingAppointments = appointmentRepository
+                        .findOverlappingAppointmentsForWeeklyPattern(
+                                dto.getRoomId(),
+                                startDate,
+                                endDate,
+                                dto.getStartTime(),
+                                dto.getEndTime(),
+                                dto.getWeeklyDay()
+                        );
+                break;
+
+            case Only:
+            default:
+                // Check only on the specified date
+                existingAppointments = appointmentRepository
+                        .findOverlappingAppointments(
+                                dto.getRoomId(),
+                                startDate,
+                                startDate,
+                                dto.getStartTime(),
+                                dto.getEndTime()
+                        );
+        }
+
+        if (!existingAppointments.isEmpty()) {
+            throw new ConflictException("Room is already booked for the specified time period");
+        }
+    }
+    private List<DayOfWeek> convertToDayOfWeek(List<DayOfWeek> weeklyDays, List<String> errors) {
+        List<DayOfWeek> convertedDays = new ArrayList<>();
+
+        for (String day : weeklyDays) {
+            try {
+                convertedDays.add(DayOfWeek.valueOf(day.toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                errors.add("weeklyDay must be day of week");
+            }
+        }
+
+        return convertedDays;
     }
 }

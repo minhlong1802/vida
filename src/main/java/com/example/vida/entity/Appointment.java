@@ -29,7 +29,6 @@ public class Appointment {
 
     @ManyToOne
     @JoinColumn(name = "room_id")
-//    @JsonBackReference
     private Room room;
 
     @Column(name = "date", nullable = false)
