@@ -3,11 +3,13 @@ package com.example.vida.controller;
 import com.example.vida.dto.request.CreateAppointmentDto;
 import com.example.vida.dto.response.APIResponse;
 import com.example.vida.entity.Appointment;
+import com.example.vida.enums.RecurrencePattern;
 import com.example.vida.exception.AppointmentValidationException;
 import com.example.vida.exception.ConflictException;
 import com.example.vida.service.AppointmentService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,7 +17,10 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.DayOfWeek;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @RestController
@@ -42,7 +47,6 @@ public class AppointmentController {
                     HttpStatus.BAD_REQUEST
             );
         }
-
         try {
             Appointment appointment = appointmentService.createAppointment(createAppointmentDto);
             return APIResponse.responseBuilder(
