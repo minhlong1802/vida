@@ -16,5 +16,7 @@ public interface DepartmentRepository extends CrudRepository<Department, Long> {
     // Tìm kiếm theo name, description hoặc code chứa searchText (không phân biệt hoa thường)
 //    @Query("SELECT d FROM Department d WHERE LOWER(d.name) LIKE LOWER(CONCAT('%', :searchText, '%'))")
 //    List<Department> searchDepartmentsByName(@Param("searchText") String searchText);
+    @Query(nativeQuery = true, value= "SELECT d FROM Department d WHERE LOWER(d.name) LIKE LOWER(CONCAT('%', :searchText, '%'))" )
+    List<Department> searchDepartmentsByName(@Param("searchText") String searchText);
     Page<Department> findDepartmentByName(String name, Pageable pageable);
 }

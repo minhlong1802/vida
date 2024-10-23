@@ -35,5 +35,4 @@ public class DepartmentController {
         Page<Department> departments = departmentService.searchDepartmentsByName(searchText);
         return ResponseEntity.ok(departments);
     }
-
 }

@@ -28,4 +28,5 @@ public class DepartmentServiceImpl implements DepartmentService {
         Pageable pageable = PageRequest.of(0, 10);
         return departmentRepository.findDepartmentByName(searchText, pageable);
     }
+
 }
