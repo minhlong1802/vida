@@ -40,4 +40,21 @@ public class DateUtils {
     public static Date getCurrentDate() {
         return null;
     }
+
+    public static Date setTime(Date date, int hours, int minutes, int seconds) {
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(date);
+        cal.set(Calendar.HOUR_OF_DAY, hours);
+        cal.set(Calendar.MINUTE, minutes);
+        cal.set(Calendar.SECOND, seconds);
+        cal.set(Calendar.MILLISECOND, 0);
+        return cal.getTime();
+    }
+    public static String dateToString(Date date, String format) {
+        try {
+            return new SimpleDateFormat(format).format(date);
+        } catch (Exception e) {
+            return "";
+        }
+    }
 }
