@@ -1,6 +1,6 @@
 package com.example.vida.controller;
 
-import com.example.vida.dto.CreateUserDto;
+import com.example.vida.dto.request.CreateUserDto;
 import com.example.vida.dto.request.LoginRequest;
 import com.example.vida.dto.response.LoginResponse;
 import com.example.vida.entity.User;

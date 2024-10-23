@@ -1,6 +1,6 @@
 package com.example.vida.service.impl;
 
-import com.example.vida.dto.CreateUserDto;
+import com.example.vida.dto.request.CreateUserDto;
 import com.example.vida.entity.User;
 import com.example.vida.exception.UserNotFoundException;
 import com.example.vida.exception.UserValidationException;
@@ -52,7 +52,6 @@ public class UserServiceImpl implements UserService {
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
 //        user.setStatus(createUserDto.getStatus());
-        // Set creator and updator information here if available
         user.setCreatorId(UserContext.getUser().getUserId());
         user.setCreatorName(UserContext.getUser().getUsername());
         user.setUpdatorId(UserContext.getUser().getUserId());

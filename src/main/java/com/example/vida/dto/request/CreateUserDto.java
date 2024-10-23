@@ -1,4 +1,4 @@
-package com.example.vida.dto;
+package com.example.vida.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonFormat;

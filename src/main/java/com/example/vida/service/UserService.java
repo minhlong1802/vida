@@ -1,6 +1,6 @@
 package com.example.vida.service;
 
-import com.example.vida.dto.CreateUserDto;
+import com.example.vida.dto.request.CreateUserDto;
 import com.example.vida.entity.User;
 import org.springframework.security.core.userdetails.UserDetails;
 

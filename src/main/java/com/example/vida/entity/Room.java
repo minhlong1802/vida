@@ -1,5 +1,6 @@
 package com.example.vida.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -8,9 +9,11 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
-@Table(name = "Room")
+@Table(name = "room")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -48,4 +51,7 @@ public class Room {
 
     @Column(name = "updator_name", length = 20)
     private String updatorName;
+    @OneToMany(mappedBy = "room", fetch = FetchType.LAZY)
+    @JsonIgnore
+    private Set<Appointment> appointments = new HashSet<>();
 }
