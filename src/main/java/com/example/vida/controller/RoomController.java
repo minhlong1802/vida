@@ -1,11 +1,8 @@
 package com.example.vida.controller;
 
 import com.example.vida.dto.CreateRoomDto;
-import com.example.vida.dto.CreateUserDto;
 import com.example.vida.entity.Room;
-import com.example.vida.repository.RoomRepository;
 import com.example.vida.service.RoomService;
-import com.example.vida.utils.JwtTokenUtils;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;

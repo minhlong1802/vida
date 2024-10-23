@@ -8,8 +8,6 @@ import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import lombok.AllArgsConstructor;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -17,7 +15,9 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @AllArgsConstructor
@@ -26,7 +26,7 @@ public class DepartmentServiceImpl implements DepartmentService {
 
 
     @Override
-    public Page<Department> searchDepartmentsByName(String searchText, Integer companyId, int page, int size) {
+    public Map<String, Object> searchDepartmentsByName(String searchText, Integer companyId, int page, int size) {
         try {
             if (page > 0) {
                 page = page - 1;
@@ -45,8 +45,12 @@ public class DepartmentServiceImpl implements DepartmentService {
             };
 
             Page<Department> pageDepartment = departmentRepository.findAll(sepecification, pageable);
-
-            return pageDepartment;
+            Map<String, Object> mapDepartment = new HashMap<>();
+            mapDepartment.put("listDepartment", pageDepartment.getContent());
+            mapDepartment.put("pageSize", pageDepartment.getSize());
+            mapDepartment.put("pageNo", pageDepartment.getNumber()+1);
+            mapDepartment.put("totalPage", pageDepartment.getTotalPages());
+            return mapDepartment;
         }catch (Exception e) {
             e.printStackTrace();
             return null;

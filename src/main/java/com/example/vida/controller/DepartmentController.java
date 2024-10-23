@@ -1,5 +1,6 @@
 package com.example.vida.controller;
 
+import com.example.vida.dto.response.APIResponse;
 import com.example.vida.entity.Department;
 import com.example.vida.service.DepartmentService;
 import lombok.AllArgsConstructor;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @AllArgsConstructor
@@ -23,11 +25,15 @@ public class DepartmentController {
     private DepartmentService departmentService;
 
     @GetMapping()
-    public ResponseEntity<Page<Department>> searchDepartments(@RequestParam String searchText,
-                                                              @RequestParam @Nullable Integer companyId,
-                                                              @RequestParam(defaultValue = "1") Integer page,
-                                                              @RequestParam(defaultValue = "10") Integer size) {
-        Page<Department> departments = departmentService.searchDepartmentsByName(searchText, companyId, page, size);
-        return ResponseEntity.ok(departments);
+    public ResponseEntity<Object> searchDepartments(@RequestParam String searchText,
+                                                         @RequestParam @Nullable Integer companyId,
+                                                         @RequestParam(defaultValue = "1") Integer page,
+                                                         @RequestParam(defaultValue = "10") Integer size) {
+        try {
+            Map<String, Object> mapDepartment = departmentService.searchDepartmentsByName(searchText, companyId, page, size);
+            return APIResponse.responseBuilder(mapDepartment, null, HttpStatus.OK);
+        } catch (Exception e) {
+            return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 }
