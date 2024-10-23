@@ -7,8 +7,7 @@ import org.springframework.data.domain.Page;
 import java.util.List;
 
 public interface DepartmentService {
-    List<Department> getAllDepartments();
 
-    Page<Department> searchDepartmentsByName(String searchText);
+    Page<Department> searchDepartmentsByName(String searchText, Integer companyId, int page, int size);
 
 }

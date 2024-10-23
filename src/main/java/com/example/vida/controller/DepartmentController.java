@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.Nullable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -21,18 +22,12 @@ public class DepartmentController {
     @Autowired
     private DepartmentService departmentService;
 
-    //Get All Department
-    //http://localhost:8080/api/departments
-    @GetMapping
-    public ResponseEntity<List<Department>> getAllDepartment() {
-        List<Department> departments = departmentService.getAllDepartments();
-        return new ResponseEntity<>(departments, HttpStatus.OK);
-    }
-    @GetMapping("/search")
+    @GetMapping()
     public ResponseEntity<Page<Department>> searchDepartments(@RequestParam String searchText,
-                                                              @RequestParam(defaultValue = "0") Integer page,
-                                                              @RequestParam(defaultValue = "3") Integer size) {
-        Page<Department> departments = departmentService.searchDepartmentsByName(searchText);
+                                                              @RequestParam @Nullable Integer companyId,
+                                                              @RequestParam(defaultValue = "1") Integer page,
+                                                              @RequestParam(defaultValue = "10") Integer size) {
+        Page<Department> departments = departmentService.searchDepartmentsByName(searchText, companyId, page, size);
         return ResponseEntity.ok(departments);
     }
 }
