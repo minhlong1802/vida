@@ -5,6 +5,7 @@ import com.example.vida.entity.Appointment;
 import com.example.vida.entity.Room;
 import com.example.vida.entity.User;
 import com.example.vida.enums.RecurrencePattern;
+import com.example.vida.exception.AppointmentValidationException;
 import com.example.vida.exception.ConflictException;
 import com.example.vida.exception.UserNotFoundException;
 import com.example.vida.repository.AppointmentRepository;
@@ -57,11 +58,6 @@ public class AppointmentServiceImpl implements AppointmentService {
                     appointments.addAll(createDailyAppointments(baseAppointment));
                     break;
                 case Weekly:
-                    List<String> errors = new ArrayList<>();
-                    List<DayOfWeek> weeklyDays = convertToDayOfWeek(createAppointmentDto.getWeeklyDay(), errors);
-                    if (!errors.isEmpty()) {
-                        throw new IllegalArgumentException(String.join(", ", errors));
-                    }
                     appointments.addAll(createWeeklyAppointments(baseAppointment, createAppointmentDto.getWeeklyDay()));
                     break;
                 case Only:
@@ -214,18 +210,6 @@ public class AppointmentServiceImpl implements AppointmentService {
         return !start1.isAfter(end2) && !end1.isBefore(start2);
     }
     private void validateRecurrencePattern(CreateAppointmentDto dto, List<String> errors) {
-        if (dto.getRecurrencePattern() == null) {
-            errors.add("RecurrencePattern must enum 'daily, only, weekly'");
-            return;
-        }
-
-        try {
-            RecurrencePattern.valueOf(dto.getRecurrencePattern().toString());
-        } catch (IllegalArgumentException e) {
-            errors.add("RecurrencePattern must enum 'daily, only, weekly'");
-            return;
-        }
-
         switch (dto.getRecurrencePattern()) {
             case Daily:
                 validateDailyRecurrence(dto, errors);
@@ -278,39 +262,24 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (dto.getWeeklyDay() == null || dto.getWeeklyDay().isEmpty()) {
             errors.add("At least one day of week must be selected for weekly pattern");
         } else {
-            try {
-                // Convert and validate weeklyDays
-                List<DayOfWeek> validatedWeeklyDays = new ArrayList<>();
-                for (String day : dto.getWeeklyDay()) {
-                    if (day == null || day.trim().isEmpty()) {
-                        errors.add("weeklyDay must be day of week");
-                        continue;
-                    }
-
-                    try {
-                        // Convert to uppercase and parse
-                        String upperDay = day.trim().toUpperCase();
-                        DayOfWeek dayOfWeek = DayOfWeek.valueOf(upperDay);
-                        validatedWeeklyDays.add(dayOfWeek);
-                    } catch (IllegalArgumentException e) {
-                        errors.add("weeklyDay must be day of week");
-                    }
+            // Validate weekly days contain valid values
+            for (DayOfWeek day : dto.getWeeklyDay()) {
+                if (!EnumSet.allOf(DayOfWeek.class).contains(day)) {
+                    errors.add("Invalid day of week specified: " + day);
                 }
+            }
 
-                // Check for duplicates
-                if (validatedWeeklyDays.size() != new HashSet<>(validatedWeeklyDays).size()) {
-                    errors.add("Duplicate days of week are not allowed");
-                }
+            // Remove duplicates and validate
+            if (dto.getWeeklyDay().size() != new HashSet<>(dto.getWeeklyDay()).size()) {
+                errors.add("Duplicate days of week are not allowed");
+            }
+        }
 
-                // If validation passed, update the DTO with converted values
-                if (errors.isEmpty()) {
-                    dto.setWeeklyDay(validatedWeeklyDays.stream()
-                            .map(DayOfWeek::name)
-                            .collect(Collectors.toList()));
-                }
-
-            } catch (Exception e) {
-                errors.add("weeklyDay must be day of week");
+        // Validate maximum recurrence period (e.g., 1 year)
+        if (dto.getDate() != null) {
+            long weeksBetween = ChronoUnit.WEEKS.between(dto.getDate(), dto.getRecurrenceEndDate());
+            if (weeksBetween > 52) { // You can adjust this limit as needed
+                errors.add("Weekly recurrence period cannot exceed 1 year");
             }
         }
     }
@@ -381,18 +350,5 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (!existingAppointments.isEmpty()) {
             throw new ConflictException("Room is already booked for the specified time period");
         }
-    }
-    private List<DayOfWeek> convertToDayOfWeek(List<DayOfWeek> weeklyDays, List<String> errors) {
-        List<DayOfWeek> convertedDays = new ArrayList<>();
-
-        for (String day : weeklyDays) {
-            try {
-                convertedDays.add(DayOfWeek.valueOf(day.toUpperCase()));
-            } catch (IllegalArgumentException e) {
-                errors.add("weeklyDay must be day of week");
-            }
-        }
-
-        return convertedDays;
     }
 }
