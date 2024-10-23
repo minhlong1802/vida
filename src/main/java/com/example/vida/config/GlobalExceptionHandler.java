@@ -11,7 +11,7 @@ import org.springframework.web.context.request.WebRequest;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(UserValidationException.class)
-    public ResponseEntity<?> handleUserValidationException(UserValidationException ex, WebRequest request) {
+    public ResponseEntity<Object> handleUserValidationException(UserValidationException ex, WebRequest request) {
         return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 

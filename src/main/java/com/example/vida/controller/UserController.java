@@ -19,6 +19,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.annotation.Validated;
+import com.example.vida.response.ResponseHandler;
 
 
 @RestController
@@ -64,21 +65,21 @@ public class UserController {
     }
 
     @PostMapping("api/users")
-    public ResponseEntity<?> createUser(@Validated @RequestBody CreateUserDto createUserDto, BindingResult bindingResult) {
+    public ResponseEntity<Object> createUser(@Validated @RequestBody CreateUserDto createUserDto, BindingResult bindingResult) {
         try {
             if (bindingResult.hasErrors()) {
-                return new ResponseEntity<>(bindingResult.getAllErrors(), HttpStatus.BAD_REQUEST);
+                return ResponseHandler.ResponseBuilder("Invalid request", HttpStatus.BAD_REQUEST, bindingResult.getAllErrors());
             }
             UserResponse createdUser = userService.createUser(createUserDto);
-            return new ResponseEntity<>(createdUser, HttpStatus.CREATED);
+            return ResponseHandler.ResponseBuilder("User created successfully", HttpStatus.CREATED, createdUser);
         } catch (Exception e) {
-            return new ResponseEntity<>("Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
+            return ResponseHandler.ResponseBuilder("Error", HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
         }
     }
     @PutMapping("api/users/{id}")
-    public ResponseEntity<UserResponse> updateUser(@PathVariable Integer id, @RequestBody UpdateUserRequest request) {
+    public ResponseEntity<Object> updateUser(@PathVariable Integer id, @RequestBody UpdateUserRequest request) {
         UserResponse updatedUser = userService.updateUser(id, request);
-        return ResponseEntity.ok(updatedUser);
+        return ResponseHandler.ResponseBuilder("User updated successfully",HttpStatus.OK, ResponseEntity.ok(updatedUser));
     }
 
 }
