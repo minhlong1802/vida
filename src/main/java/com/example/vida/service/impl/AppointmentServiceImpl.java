@@ -12,10 +12,18 @@ import com.example.vida.repository.RoomRepository;
 import com.example.vida.repository.UserRepository;
 import com.example.vida.service.AppointmentService;
 import com.example.vida.utils.UserContext;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
@@ -38,6 +46,39 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Autowired
     private RoomRepository roomRepository;
+
+    public Map<String, Object> searchAppointmentByTitle(String searchText, Integer roomId, int page, int size, List<Integer> userIds){
+        try {
+            if (page > 0) {
+                page = page - 1;
+            }
+            Pageable pageable = PageRequest.of(page, size);
+            Specification<Appointment> specification = new Specification<Appointment>() {
+                @Override
+                public Predicate toPredicate(Root<Appointment> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) {
+                    List<Predicate> predicates = new ArrayList<>();
+                    predicates.add(criteriaBuilder.like(root.get("title"), "%" + searchText + "%"));
+                    if (roomId != null) {
+                        predicates.add(criteriaBuilder.equal(root.get("roomId"), roomId));
+                    }
+                    return criteriaBuilder.and(predicates.toArray(new Predicate[predicates.size()]));
+                }
+            };
+
+            Page<Appointment> pageAppointment = appointmentRepository.findAll(specification, pageable);
+
+            Map<String, Object> mapDepartment = new HashMap<>();
+            mapDepartment.put("listAppointment", pageAppointment.getContent());
+            mapDepartment.put("pageSize", pageAppointment.getSize());
+            mapDepartment.put("pageNo", pageAppointment.getNumber()+1);
+            mapDepartment.put("totalPage", pageAppointment.getTotalPages());
+            return mapDepartment;
+        }catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+
+    }
 
     public Appointment createAppointment(CreateAppointmentDto createAppointmentDto) {
         validateAppointmentData(createAppointmentDto);

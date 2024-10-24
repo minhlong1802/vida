@@ -6,6 +6,7 @@ import com.example.vida.entity.Appointment;
 import com.example.vida.enums.RecurrencePattern;
 import com.example.vida.exception.ConflictException;
 import com.example.vida.service.AppointmentService;
+import io.micrometer.common.lang.Nullable;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/appointments")
@@ -77,4 +79,18 @@ public class AppointmentController {
             );
         }
     }
+    @GetMapping()
+    public ResponseEntity<Object> searchDepartments(@RequestParam String searchText,
+                                                    @RequestParam @Nullable Integer roomId,
+                                                    @RequestParam(defaultValue = "1") Integer page,
+                                                    @RequestParam(defaultValue = "10") Integer size,
+                                                    @RequestParam List<Integer> userIds) {
+        try {
+            Map<String, Object> mapAppointment = appointmentService.searchAppointmentByTitle(searchText, roomId, page, size, userIds);
+            return APIResponse.responseBuilder(mapAppointment, null, HttpStatus.OK);
+        } catch (Exception e) {
+            return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
 }

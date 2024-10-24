@@ -2,6 +2,7 @@ package com.example.vida.repository;
 
 import com.example.vida.entity.Appointment;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -9,7 +10,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
-public interface AppointmentRepository extends JpaRepository<Appointment, Integer> {
+public interface AppointmentRepository extends JpaRepository<Appointment, Integer>, JpaSpecificationExecutor<Appointment> {
     @Query("SELECT a FROM Appointment a " +
             "WHERE a.room.id = :roomId " +
             "AND a.date = :date " +
@@ -21,4 +22,5 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
             @Param("startTime") LocalTime startTime,
             @Param("endTime") LocalTime endTime
     );
+    List<Appointment> searchAppointmentByTitle(@Param("searchText") String searchText);
 }
