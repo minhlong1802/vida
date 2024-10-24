@@ -5,7 +5,6 @@ import com.example.vida.entity.Appointment;
 import com.example.vida.entity.Room;
 import com.example.vida.entity.User;
 import com.example.vida.enums.RecurrencePattern;
-import com.example.vida.exception.AppointmentValidationException;
 import com.example.vida.exception.ConflictException;
 import com.example.vida.exception.UserNotFoundException;
 import com.example.vida.repository.AppointmentRepository;
@@ -23,7 +22,6 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -183,8 +181,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
 
         // Check recurrence end date if present
-        if (appointmentDto.getRecurrencePattern() != RecurrencePattern.Only
-                && appointmentDto.getRecurrenceEndDate() != null) {
+        if (appointmentDto.getRecurrencePattern() != RecurrencePattern.Only) {
             if (appointmentDto.getRecurrenceEndDate().isBefore(appointmentDto.getDate())) {
                 throw new IllegalArgumentException("Recurrence end date must be after appointment date");
             }
