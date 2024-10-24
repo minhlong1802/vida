@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
         return APIResponse.responseBuilder(
                 null,
-                "Invalid input format. Please check your date and time formats",
+                "Invalid input format. Please check the request body",
                 HttpStatus.BAD_REQUEST
         );
     }

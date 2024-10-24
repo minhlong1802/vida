@@ -15,13 +15,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.time.DayOfWeek;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/appointments")
@@ -39,11 +34,18 @@ public class AppointmentController {
             List<String> errors = bindingResult.getFieldErrors()
                     .stream()
                     .map(error ->  error.getDefaultMessage())
-                    .collect(Collectors.toList());
+                    .toList();
 
             return APIResponse.responseBuilder(
                     null,
                     errors.get(0), // Get first error message
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+        if(createAppointmentDto.getWeeklyDay()==null&&createAppointmentDto.getRecurrencePattern()==RecurrencePattern.Weekly){
+            return APIResponse.responseBuilder(
+                    null,
+                    "weeklyDays is necessary for weekly meeting",
                     HttpStatus.BAD_REQUEST
             );
         }

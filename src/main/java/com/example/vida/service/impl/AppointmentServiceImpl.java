@@ -43,8 +43,6 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     public Appointment createAppointment(CreateAppointmentDto createAppointmentDto) {
         validateAppointmentData(createAppointmentDto);
-        // Validate room availability
-        validateRoomAvailability(createAppointmentDto);
 
         List<Appointment> appointments = new ArrayList<>();
 
@@ -58,7 +56,12 @@ public class AppointmentServiceImpl implements AppointmentService {
                     appointments.addAll(createDailyAppointments(baseAppointment));
                     break;
                 case Weekly:
-                    appointments.addAll(createWeeklyAppointments(baseAppointment, createAppointmentDto.getWeeklyDay()));
+                    List<String> errors = new ArrayList<>();
+                    List<DayOfWeek> weeklyDays = convertToDayOfWeek(createAppointmentDto.getWeeklyDay(), errors);
+                    if (!errors.isEmpty()) {
+                        throw new IllegalArgumentException(String.join(", ", errors));
+                    }
+                    appointments.addAll(createWeeklyAppointments(baseAppointment, weeklyDays));
                     break;
                 case Only:
                     appointments.add(baseAppointment);
@@ -161,13 +164,19 @@ public class AppointmentServiceImpl implements AppointmentService {
     private void validateAppointmentData(CreateAppointmentDto appointmentDto) {
         // 1. Time validations
         LocalDate currentDate = LocalDate.now();
-        List<String> errors = new ArrayList<>();
-
         // Check if appointment date is in the past
         if (appointmentDto.getDate().isBefore(currentDate)) {
             throw new IllegalArgumentException("Appointment date cannot be in the past");
         }
+        if (appointmentDto.getRecurrenceEndDate() == null) {
+            throw new IllegalArgumentException("Recurrence end date is required");
 
+        }
+
+        // Validate recurrence end date is not before start date
+        if (appointmentDto.getRecurrenceEndDate().isBefore(appointmentDto.getDate())) {
+            throw new IllegalArgumentException("Recurrence end date must be after or equal to start date");
+        }
         // Check if end time is before start time
         if (appointmentDto.getEndTime().isBefore(appointmentDto.getStartTime())) {
             throw new IllegalArgumentException("End time must be after start time");
@@ -180,15 +189,15 @@ public class AppointmentServiceImpl implements AppointmentService {
                 throw new IllegalArgumentException("Recurrence end date must be after appointment date");
             }
         }
-        if (appointmentDto.getRecurrencePattern() != null) {
-            validateRecurrencePattern(appointmentDto, errors);
-        }
         // 2. Conflict validations
         List<Appointment> existingAppointments = appointmentRepository
-                .findByDateAndStartTimeGreaterThanEqual(
+                .findConflictingAppointments(
+                        appointmentDto.getRoomId(),
                         appointmentDto.getDate(),
-                        appointmentDto.getStartTime()
+                        appointmentDto.getStartTime(),
+                        appointmentDto.getEndTime()
                 );
+
 
         // Check for time overlaps with existing appointments
         boolean hasConflict = existingAppointments.stream()
@@ -203,152 +212,22 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new ConflictException("Appointment time conflicts with existing appointment");
         }
     }
+    private List<DayOfWeek> convertToDayOfWeek(List<String> weeklyDays, List<String> errors) {
+        List<DayOfWeek> convertedDays = new ArrayList<>();
 
+        for (String day : weeklyDays) {
+            try {
+                convertedDays.add(DayOfWeek.valueOf(day.toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                errors.add("weeklyDay must be day of week");
+            }
+        }
+
+        return convertedDays;
+    }
     private boolean isTimeOverlap(
             LocalTime start1, LocalTime end1,
             LocalTime start2, LocalTime end2) {
         return !start1.isAfter(end2) && !end1.isBefore(start2);
-    }
-    private void validateRecurrencePattern(CreateAppointmentDto dto, List<String> errors) {
-        switch (dto.getRecurrencePattern()) {
-            case Daily:
-                validateDailyRecurrence(dto, errors);
-                break;
-            case Weekly:
-                validateWeeklyRecurrence(dto, errors);
-                break;
-            case Only:
-                validateSingleRecurrence(dto, errors);
-                break;
-            default:
-                errors.add("Invalid recurrence pattern");
-        }
-    }
-
-    private void validateDailyRecurrence(CreateAppointmentDto dto, List<String> errors) {
-        // Validate recurrence end date is required
-        if (dto.getRecurrenceEndDate() == null) {
-            errors.add("Recurrence end date is required for daily pattern");
-            return;
-        }
-
-        // Validate recurrence end date is not before start date
-        if (dto.getDate() != null && dto.getRecurrenceEndDate().isBefore(dto.getDate())) {
-            errors.add("Recurrence end date must be after or equal to start date");
-        }
-
-        // Validate maximum recurrence period (e.g., 1 year)
-        if (dto.getDate() != null) {
-            long daysBetween = ChronoUnit.DAYS.between(dto.getDate(), dto.getRecurrenceEndDate());
-            if (daysBetween > 365) { // You can adjust this limit as needed
-                errors.add("Daily recurrence period cannot exceed 1 year");
-            }
-        }
-    }
-
-    private void validateWeeklyRecurrence(CreateAppointmentDto dto, List<String> errors) {
-        // Validate recurrence end date is required
-        if (dto.getRecurrenceEndDate() == null) {
-            errors.add("Recurrence end date is required for weekly pattern");
-            return;
-        }
-
-        // Validate recurrence end date is not before start date
-        if (dto.getDate() != null && dto.getRecurrenceEndDate().isBefore(dto.getDate())) {
-            errors.add("Recurrence end date must be after or equal to start date");
-        }
-
-        // Validate weekly days are specified
-        if (dto.getWeeklyDay() == null || dto.getWeeklyDay().isEmpty()) {
-            errors.add("At least one day of week must be selected for weekly pattern");
-        } else {
-            // Validate weekly days contain valid values
-            for (DayOfWeek day : dto.getWeeklyDay()) {
-                if (!EnumSet.allOf(DayOfWeek.class).contains(day)) {
-                    errors.add("Invalid day of week specified: " + day);
-                }
-            }
-
-            // Remove duplicates and validate
-            if (dto.getWeeklyDay().size() != new HashSet<>(dto.getWeeklyDay()).size()) {
-                errors.add("Duplicate days of week are not allowed");
-            }
-        }
-
-        // Validate maximum recurrence period (e.g., 1 year)
-        if (dto.getDate() != null) {
-            long weeksBetween = ChronoUnit.WEEKS.between(dto.getDate(), dto.getRecurrenceEndDate());
-            if (weeksBetween > 52) { // You can adjust this limit as needed
-                errors.add("Weekly recurrence period cannot exceed 1 year");
-            }
-        }
-    }
-
-    private void validateSingleRecurrence(CreateAppointmentDto dto, List<String> errors) {
-        // For ONLY pattern, recurrence end date should not be set
-        if (dto.getRecurrenceEndDate() != null) {
-            errors.add("Recurrence end date should not be set for single appointments");
-        }
-
-        // Weekly days should not be set
-        if (dto.getWeeklyDay() != null && !dto.getWeeklyDay().isEmpty()) {
-            errors.add("Weekly days should not be set for single appointments");
-        }
-    }
-
-    private void validateRoomAvailability(CreateAppointmentDto dto) {
-        if (dto.getRoomId() == null) {
-            return; // Skip validation if no room is selected
-        }
-
-        LocalDate startDate = dto.getDate();
-        LocalDate endDate = dto.getRecurrencePattern() != RecurrencePattern.Only
-                ? dto.getRecurrenceEndDate()
-                : dto.getDate();
-
-        List<Appointment> existingAppointments;
-
-        switch (dto.getRecurrencePattern()) {
-            case Daily:
-                // Check each day between start and end date
-                existingAppointments = appointmentRepository
-                        .findOverlappingAppointments(
-                                dto.getRoomId(),
-                                startDate,
-                                endDate,
-                                dto.getStartTime(),
-                                dto.getEndTime()
-                        );
-                break;
-
-            case Weekly:
-                // Check only on specified days of week between start and end date
-                existingAppointments = appointmentRepository
-                        .findOverlappingAppointmentsForWeeklyPattern(
-                                dto.getRoomId(),
-                                startDate,
-                                endDate,
-                                dto.getStartTime(),
-                                dto.getEndTime(),
-                                dto.getWeeklyDay()
-                        );
-                break;
-
-            case Only:
-            default:
-                // Check only on the specified date
-                existingAppointments = appointmentRepository
-                        .findOverlappingAppointments(
-                                dto.getRoomId(),
-                                startDate,
-                                startDate,
-                                dto.getStartTime(),
-                                dto.getEndTime()
-                        );
-        }
-
-        if (!existingAppointments.isEmpty()) {
-            throw new ConflictException("Room is already booked for the specified time period");
-        }
     }
 }

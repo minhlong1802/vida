@@ -45,5 +45,5 @@ public class CreateAppointmentDto {
 
     private Set<Integer> userIds = new HashSet<>();
 
-    private List<DayOfWeek> weeklyDay;
+    private List<String> weeklyDay;
 }

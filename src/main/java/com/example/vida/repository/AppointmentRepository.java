@@ -11,8 +11,17 @@ import java.time.LocalTime;
 import java.util.List;
 
 public interface AppointmentRepository extends JpaRepository<Appointment, Integer> {
-    List<Appointment> findByDateAndStartTimeGreaterThanEqual(LocalDate date, LocalTime startTime);
     @Query("SELECT a FROM Appointment a " +
+            "WHERE a.room.id = :roomId " +
+            "AND a.date = :date " +
+            "AND ((a.startTime <= :endTime AND a.endTime >= :startTime) " +
+            "OR (a.startTime >= :startTime AND a.startTime < :endTime))")
+    List<Appointment> findConflictingAppointments(
+            @Param("roomId") Integer roomId,
+            @Param("date") LocalDate date,
+            @Param("startTime") LocalTime startTime,
+            @Param("endTime") LocalTime endTime
+    );    @Query("SELECT a FROM Appointment a " +
             "WHERE a.room.id = :roomId " +
             "AND a.date BETWEEN :startDate AND :endDate " +
             "AND ((a.startTime <= :endTime AND a.endTime >= :startTime))")
@@ -35,6 +44,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
             @Param("endDate") LocalDate endDate,
             @Param("startTime") LocalTime startTime,
             @Param("endTime") LocalTime endTime,
-            @Param("weeklyDays") List<DayOfWeek> weeklyDays
+            @Param("weeklyDays") List<String> weeklyDays
     );
 }
