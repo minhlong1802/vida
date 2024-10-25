@@ -41,7 +41,7 @@ public class AppointmentController {
                     .map(error ->  error.getDefaultMessage())
                     .collect(Collectors.toList());
 
-            return APIResponse.responseBuilder(
+            return APIResponse.ResponseBuilder(
                     null,
                     errors.get(0), // Get first error message
                     HttpStatus.BAD_REQUEST
@@ -49,28 +49,28 @@ public class AppointmentController {
         }
         try {
             Appointment appointment = appointmentService.createAppointment(createAppointmentDto);
-            return APIResponse.responseBuilder(
+            return APIResponse.ResponseBuilder(
                     appointment,
                     "Appointment created successfully",
                     HttpStatus.OK
             );
         } catch (IllegalArgumentException e) {
             log.error("Invalid appointment data: {}", e.getMessage());
-            return APIResponse.responseBuilder(
+            return APIResponse.ResponseBuilder(
                     null,
                     e.getMessage(),
                     HttpStatus.BAD_REQUEST
             );
         } catch (ConflictException e) {
             log.error("Appointment conflict: {}", e.getMessage());
-            return APIResponse.responseBuilder(
+            return APIResponse.ResponseBuilder(
                     null,
                     e.getMessage(),
                     HttpStatus.BAD_REQUEST
             );
         } catch (Exception e) {
             log.error("Error creating appointment", e);
-            return APIResponse.responseBuilder(
+            return APIResponse.ResponseBuilder(
                     null,
                     "Error creating appointment",
                     HttpStatus.INTERNAL_SERVER_ERROR

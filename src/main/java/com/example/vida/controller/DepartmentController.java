@@ -31,9 +31,9 @@ public class DepartmentController {
                                                          @RequestParam(defaultValue = "10") Integer size) {
         try {
             Map<String, Object> mapDepartment = departmentService.searchDepartmentsByName(searchText, companyId, page, size);
-            return APIResponse.responseBuilder(mapDepartment, null, HttpStatus.OK);
+            return APIResponse.ResponseBuilder(mapDepartment, null, HttpStatus.OK);
         } catch (Exception e) {
-            return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+            return APIResponse.ResponseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 }

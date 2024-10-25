@@ -19,7 +19,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.annotation.Validated;
-import com.example.vida.response.ResponseHandler;
+import com.example.vida.dto.response.APIResponse;
 
 
 @RestController
@@ -68,18 +68,18 @@ public class UserController {
     public ResponseEntity<Object> createUser(@Validated @RequestBody CreateUserDto createUserDto, BindingResult bindingResult) {
         try {
             if (bindingResult.hasErrors()) {
-                return ResponseHandler.ResponseBuilder("Invalid request", HttpStatus.BAD_REQUEST, bindingResult.getAllErrors());
+                return APIResponse.ResponseBuilder(bindingResult.getAllErrors(),"Invalid request", HttpStatus.BAD_REQUEST);
             }
             UserResponse createdUser = userService.createUser(createUserDto);
-            return ResponseHandler.ResponseBuilder("User created successfully", HttpStatus.CREATED, createdUser);
+            return APIResponse.ResponseBuilder(createdUser, "create user success", HttpStatus.CREATED);
         } catch (Exception e) {
-            return ResponseHandler.ResponseBuilder("Error", HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
+            return APIResponse.ResponseBuilder(e.getMessage(),"Error", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
     @PutMapping("api/users/{id}")
     public ResponseEntity<Object> updateUser(@PathVariable Integer id, @RequestBody UpdateUserRequest request) {
         UserResponse updatedUser = userService.updateUser(id, request);
-        return ResponseHandler.ResponseBuilder("User updated successfully",HttpStatus.OK, ResponseEntity.ok(updatedUser));
+        return APIResponse.ResponseBuilder(ResponseEntity.ok(updatedUser),"User updated successfully",HttpStatus.OK);
     }
 
 }
