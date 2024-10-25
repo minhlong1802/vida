@@ -15,7 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -27,70 +27,75 @@ public class AppointmentController {
     private AppointmentService appointmentService;
 
     @PostMapping
-    public ResponseEntity<Object> createAppointment(@Valid @RequestBody CreateAppointmentDto createAppointmentDto,
-                                                    BindingResult bindingResult) {
-        // Handle validation errors
-        if (bindingResult.hasErrors()) {
-            List<String> errors = bindingResult.getFieldErrors()
-                    .stream()
-                    .map(error ->  error.getDefaultMessage())
-                    .toList();
+    public ResponseEntity<Object> createAppointment(
+            @Valid @RequestBody CreateAppointmentDto createAppointmentDto,
+            BindingResult bindingResult) {
 
+        // Thu thập tất cả các lỗi validation
+        Map<String, String> errors = new HashMap<>();
+
+        // 1. Thêm các lỗi từ @Valid annotation
+        if (bindingResult.hasErrors()) {
+            bindingResult.getFieldErrors().forEach(error ->
+                    errors.put(error.getField(), error.getDefaultMessage())
+            );
+        }
+
+        // 2. Thêm các lỗi từ business validation
+        try {
+            Map<String, String> businessErrors = appointmentService.validateAppointmentData(createAppointmentDto);
+            errors.putAll(businessErrors);
+        } catch (Exception e) {
+            log.error("Error during business validation", e);
             return APIResponse.responseBuilder(
                     null,
-                    errors.get(0), // Get first error message
+                    "Internal validation error",
+                    HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
+
+        // Nếu có bất kỳ lỗi nào, trả về tất cả các lỗi
+        if (!errors.isEmpty()) {
+            return APIResponse.responseBuilder(
+                    errors,  // Trả về map chứa tất cả các lỗi trong data
+                    "Validation failed",
                     HttpStatus.BAD_REQUEST
             );
         }
-        if(createAppointmentDto.getWeeklyDay()==null&&createAppointmentDto.getRecurrencePattern()==RecurrencePattern.Weekly){
-            return APIResponse.responseBuilder(
-                    null,
-                    "weeklyDays is necessary for weekly meeting",
-                    HttpStatus.BAD_REQUEST
-            );
-        }
+
+        // Xử lý tạo appointment nếu không có lỗi
         try {
             Appointment appointment = appointmentService.createAppointment(createAppointmentDto);
             return APIResponse.responseBuilder(
                     appointment,
                     "Appointment created successfully",
-                    HttpStatus.OK
+                    HttpStatus.CREATED
             );
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid appointment data: {}", e.getMessage());
-            return APIResponse.responseBuilder(
-                    null,
-                    e.getMessage(),
-                    HttpStatus.BAD_REQUEST
-            );
-        } catch (ConflictException e) {
-            log.error("Appointment conflict: {}", e.getMessage());
-            return APIResponse.responseBuilder(
-                    null,
-                    e.getMessage(),
-                    HttpStatus.BAD_REQUEST
-            );
-        } catch (Exception e) {
+        }  catch (Exception e) {
             log.error("Error creating appointment", e);
             return APIResponse.responseBuilder(
                     null,
-                    "Error creating appointment",
+                    "An unexpected error occurred",
                     HttpStatus.INTERNAL_SERVER_ERROR
             );
         }
     }
+
     @GetMapping()
-    public ResponseEntity<Object> searchDepartments(@RequestParam String searchText,
+    public ResponseEntity<Object> searchAppointments(@RequestParam @Nullable String searchText,
                                                     @RequestParam @Nullable Integer roomId,
                                                     @RequestParam(defaultValue = "1") Integer page,
                                                     @RequestParam(defaultValue = "10") Integer size,
-                                                    @RequestParam List<Integer> userIds) {
+                                                    @RequestParam @Nullable Integer userId) {
         try {
-            Map<String, Object> mapAppointment = appointmentService.searchAppointmentByTitle(searchText, roomId, page, size, userIds);
+            if(page<=0&&size<=0) {
+                page = 1;
+                size = 1;
+            }
+            Map<String, Object> mapAppointment = appointmentService.searchAppointmentByTitle(searchText, roomId, page, size, userId);
             return APIResponse.responseBuilder(mapAppointment, null, HttpStatus.OK);
         } catch (Exception e) {
             return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-
 }

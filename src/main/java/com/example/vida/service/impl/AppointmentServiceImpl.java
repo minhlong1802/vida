@@ -5,17 +5,14 @@ import com.example.vida.entity.Appointment;
 import com.example.vida.entity.Room;
 import com.example.vida.entity.User;
 import com.example.vida.enums.RecurrencePattern;
-import com.example.vida.exception.ConflictException;
 import com.example.vida.exception.UserNotFoundException;
 import com.example.vida.repository.AppointmentRepository;
 import com.example.vida.repository.RoomRepository;
 import com.example.vida.repository.UserRepository;
 import com.example.vida.service.AppointmentService;
+import com.example.vida.utils.DateUtils;
 import com.example.vida.utils.UserContext;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.*;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -30,6 +27,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -46,8 +44,16 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Autowired
     private RoomRepository roomRepository;
+    private static final Set<String> VALID_WEEKLY_DAYS = Set.of(
+            "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"
+    );
+    private static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd";
+    private static final DateTimeFormatter formatterDate = DateTimeFormatter.ofPattern(DEFAULT_DATE_FORMAT);
 
-    public Map<String, Object> searchAppointmentByTitle(String searchText, Integer roomId, int page, int size, List<Integer> userIds){
+    private static final String TIME_PATTERN = "HH:mm";
+    private static final DateTimeFormatter formatterTime = DateTimeFormatter.ofPattern(TIME_PATTERN);
+
+    public Map<String, Object> searchAppointmentByTitle(String searchText, Integer roomId, int page, int size, Integer userId){
         try {
             if (page > 0) {
                 page = page - 1;
@@ -59,7 +65,13 @@ public class AppointmentServiceImpl implements AppointmentService {
                     List<Predicate> predicates = new ArrayList<>();
                     predicates.add(criteriaBuilder.like(root.get("title"), "%" + searchText + "%"));
                     if (roomId != null) {
-                        predicates.add(criteriaBuilder.equal(root.get("roomId"), roomId));
+                        predicates.add(criteriaBuilder.equal(root.get("room").get("id"), roomId));
+                    }
+                    if (userId != null ) {
+                        // Join with the users relationship
+                        Join<Appointment, User> userJoin = root.join("users");
+                        // Add condition where user ID is in the provided list
+                        predicates.add(userJoin.get("id").in(userId));
                     }
                     return criteriaBuilder.and(predicates.toArray(new Predicate[predicates.size()]));
                 }
@@ -95,11 +107,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                     appointments.addAll(createDailyAppointments(baseAppointment));
                     break;
                 case Weekly:
-                    List<String> errors = new ArrayList<>();
-                    List<DayOfWeek> weeklyDays = convertToDayOfWeek(createAppointmentDto.getWeeklyDay(), errors);
-                    if (!errors.isEmpty()) {
-                        throw new IllegalArgumentException(String.join(", ", errors));
-                    }
+                    List<DayOfWeek> weeklyDays = convertToDayOfWeek(createAppointmentDto.getWeeklyDay());
                     appointments.addAll(createWeeklyAppointments(baseAppointment, weeklyDays));
                     break;
                 case Only:
@@ -200,68 +208,150 @@ public class AppointmentServiceImpl implements AppointmentService {
         return clone;
     }
 
-    private void validateAppointmentData(CreateAppointmentDto appointmentDto) {
+    public Map<String, String> validateAppointmentData(CreateAppointmentDto appointmentDto) {
         // 1. Time validations
         LocalDate currentDate = LocalDate.now();
+        Map<String, String> errors = new HashMap<>();
+        LocalDate date = null;
+        LocalTime startTime = null;
+        LocalTime endTime = null;
+
+        // Validate date
+        if (!dateUtils.isValidDate(appointmentDto.getDate())) {
+            errors.put("date", "Date is invalid format");
+        } else {
+            try {
+                date = LocalDate.parse(appointmentDto.getDate(), formatterDate);
+
+                // Thêm validation cho date nếu cần
+                if (date.isBefore(LocalDate.now())) {
+                    errors.put("date", "Date cannot be in the past");
+                }
+            } catch (Exception e) {
+                errors.put("date", "Date is invalid format");
+            }
+        }
+
+        // Validate startTime
+        if (!isValidTime(appointmentDto.getStartTime())) {
+            errors.put("startTime", "Start time is invalid format");
+        } else {
+            try {
+                startTime = LocalTime.parse(appointmentDto.getStartTime(), formatterTime);
+            } catch (Exception e) {
+                errors.put("startTime", "Start time is invalid format");
+            }
+        }
+
+        // Validate endTime
+        if (!isValidTime(appointmentDto.getEndTime())) {
+            errors.put("endTime", "End time is invalid format");
+        } else {
+            try {
+                endTime = LocalTime.parse(appointmentDto.getEndTime(), formatterTime);
+            } catch (Exception e) {
+                errors.put("endTime", "End time is invalid format");
+            }
+        }
+
         // Check if appointment date is in the past
-        if (appointmentDto.getDate().isBefore(currentDate)) {
-            throw new IllegalArgumentException("Appointment date cannot be in the past");
+        if (date.isBefore(currentDate)) {
+            errors.put("date","Appointment date cannot be in the past");
         }
-        if (appointmentDto.getRecurrenceEndDate() == null) {
-            throw new IllegalArgumentException("Recurrence end date is required");
+        if (RecurrencePattern.Weekly.equals(appointmentDto.getRecurrencePattern())) {
+            List<String> weeklyDays = appointmentDto.getWeeklyDay();
+            if (weeklyDays == null || weeklyDays.isEmpty()) {
+                errors.put("weeklyDay", "Weekly days must be specified for weekly recurring appointments");
+            } else {
+                // Kiểm tra format và giá trị hợp lệ của các ngày
+                List<String> invalidDays = weeklyDays.stream()
+                        .filter(day -> !isValidWeekDay(day))
+                        .collect(Collectors.toList());
 
+                if (!invalidDays.isEmpty()) {
+                    errors.put("weeklyDay",
+                            "Invalid week day value(s): " + String.join(", ", invalidDays) +
+                                    ". Valid values are: " + String.join(", ", VALID_WEEKLY_DAYS));
+                }
+            }
         }
-
         // Validate recurrence end date is not before start date
-        if (appointmentDto.getRecurrenceEndDate().isBefore(appointmentDto.getDate())) {
-            throw new IllegalArgumentException("Recurrence end date must be after or equal to start date");
+        if (appointmentDto.getRecurrenceEndDate().isBefore(date)) {
+            errors.put("recurrenceEndDate","Recurrence end date must be after or equal to start date");
         }
         // Check if end time is before start time
-        if (appointmentDto.getEndTime().isBefore(appointmentDto.getStartTime())) {
-            throw new IllegalArgumentException("End time must be after start time");
+        if (endTime.isBefore(startTime)) {
+            errors.put("endTime","End time must be after start time");
         }
 
         // Check recurrence end date if present
         if (appointmentDto.getRecurrencePattern() != RecurrencePattern.Only) {
-            if (appointmentDto.getRecurrenceEndDate().isBefore(appointmentDto.getDate())) {
-                throw new IllegalArgumentException("Recurrence end date must be after appointment date");
+            if (appointmentDto.getRecurrenceEndDate().isBefore(date)) {
+                errors.put("recurrenceEndDate","Recurrence end date must be after appointment date");
             }
         }
         // 2. Conflict validations
         List<Appointment> existingAppointments = appointmentRepository
                 .findConflictingAppointments(
                         appointmentDto.getRoomId(),
-                        appointmentDto.getDate(),
-                        appointmentDto.getStartTime(),
-                        appointmentDto.getEndTime()
+                        date,
+                        startTime,
+                        endTime
                 );
 
 
         // Check for time overlaps with existing appointments
         boolean hasConflict = existingAppointments.stream()
                 .anyMatch(existing -> isTimeOverlap(
-                        appointmentDto.getStartTime(),
-                        appointmentDto.getEndTime(),
+                        startTime,
+                        endTime,
                         existing.getStartTime(),
                         existing.getEndTime()
                 ));
 
         if (hasConflict) {
-            throw new ConflictException("Appointment time conflicts with existing appointment");
+            errors.put("date","Conflict with existing appointment");
         }
+        return errors;
     }
-    private List<DayOfWeek> convertToDayOfWeek(List<String> weeklyDays, List<String> errors) {
+    private boolean isValidWeekDay(String day) {
+        if (day == null) return false;
+        return VALID_WEEKLY_DAYS.contains(day.toUpperCase());
+    }
+    private List<DayOfWeek> convertToDayOfWeek(List<String> weeklyDays) {
         List<DayOfWeek> convertedDays = new ArrayList<>();
 
         for (String day : weeklyDays) {
             try {
                 convertedDays.add(DayOfWeek.valueOf(day.toUpperCase()));
             } catch (IllegalArgumentException e) {
-                errors.add("weeklyDay must be day of week");
+                throw new IllegalArgumentException("Must be day of week");
             }
         }
 
         return convertedDays;
+    }
+    public static boolean isValidTime(String time) {
+        try {
+            // Check if time string is null or empty
+            if (time == null || time.trim().isEmpty()) {
+                return false;
+            }
+
+            // Define regex pattern for time format HH:mm
+            // HH: 00-23
+            // mm: 00-59
+            String timePattern = "^([01]?[0-9]|2[0-3]):[0-5][0-9]$";
+
+            // First check if the format matches our pattern
+            if (!time.matches(timePattern)) {
+                return false;
+            }
+
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
     private boolean isTimeOverlap(
             LocalTime start1, LocalTime end1,

@@ -8,5 +8,6 @@ import java.util.Map;
 
 public interface AppointmentService {
     Appointment createAppointment(CreateAppointmentDto createAppointmentDto);
-    Map<String, Object> searchAppointmentByTitle(String searchText, Integer roomId, int page, int size, List<Integer> userIds);
+    Map<String, Object> searchAppointmentByTitle(String searchText, Integer roomId, int page, int size, Integer userId);
+    Map<String, String> validateAppointmentData(CreateAppointmentDto createAppointmentDto);
 }

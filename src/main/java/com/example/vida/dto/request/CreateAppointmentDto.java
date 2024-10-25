@@ -1,9 +1,8 @@
 package com.example.vida.dto.request;
 
 import com.example.vida.enums.RecurrencePattern;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -24,16 +23,17 @@ public class CreateAppointmentDto {
     private String title;
 
     @NotNull(message = "Room ID is required")
+    @Positive(message = "Room ID must be greater than 0")
     private Integer roomId;
 
     @NotNull(message = "Date is required")
-    private LocalDate date;
+    private String date;
 
     @NotNull(message = "Start time is required")
-    private LocalTime startTime;
+    private String startTime;
 
     @NotNull(message = "End time is required")
-    private LocalTime endTime;
+    private String endTime;
 
     private String contentBrief;
 

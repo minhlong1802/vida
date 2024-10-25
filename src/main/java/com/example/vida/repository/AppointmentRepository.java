@@ -22,5 +22,4 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
             @Param("startTime") LocalTime startTime,
             @Param("endTime") LocalTime endTime
     );
-    List<Appointment> searchAppointmentByTitle(@Param("searchText") String searchText);
 }
