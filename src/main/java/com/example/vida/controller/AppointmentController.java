@@ -4,6 +4,7 @@ import com.example.vida.dto.request.CreateAppointmentDto;
 import com.example.vida.dto.response.APIResponse;
 import com.example.vida.entity.Appointment;
 import com.example.vida.enums.RecurrencePattern;
+import com.example.vida.exception.AppointmentNotFoundException;
 import com.example.vida.exception.ConflictException;
 import com.example.vida.service.AppointmentService;
 import io.micrometer.common.lang.Nullable;
@@ -97,5 +98,38 @@ public class AppointmentController {
         } catch (Exception e) {
             return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+    @PutMapping("/{id}")
+    public ResponseEntity<Object> updateAppointment(@PathVariable Integer id, @RequestBody CreateAppointmentDto createAppointmentDto){
+        return APIResponse.responseBuilder(
+                appointmentService.updateAppointment(id, createAppointmentDto),
+                "Appointment update successfully",
+                HttpStatus.OK
+        );
+    }
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Object> deleteAppointment(@PathVariable Integer id){
+        try {
+            appointmentService.deleteAppointment(id); // Assuming this performs the deletion
+            return APIResponse.responseBuilder(
+                    null,
+                    "Appointment deleted successfully",
+                    HttpStatus.OK
+            );
+        } catch (AppointmentNotFoundException e) {
+            return APIResponse.responseBuilder(
+                    null,
+                    "Appointment not found",
+                    HttpStatus.NOT_FOUND
+            );
+        }
+    }
+    @GetMapping("/{id}")
+    public ResponseEntity<Object> detailAppointment(@PathVariable Integer id){
+        return APIResponse.responseBuilder(
+                appointmentService.getAppointmentById(id),
+                "Appointment delete successfully",
+                HttpStatus.OK
+        );
     }
 }

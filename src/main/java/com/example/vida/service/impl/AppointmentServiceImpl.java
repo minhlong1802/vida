@@ -5,6 +5,8 @@ import com.example.vida.entity.Appointment;
 import com.example.vida.entity.Room;
 import com.example.vida.entity.User;
 import com.example.vida.enums.RecurrencePattern;
+import com.example.vida.exception.AppointmentNotFoundException;
+import com.example.vida.exception.AppointmentValidationException;
 import com.example.vida.exception.UserNotFoundException;
 import com.example.vida.repository.AppointmentRepository;
 import com.example.vida.repository.RoomRepository;
@@ -28,6 +30,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -44,6 +47,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Autowired
     private RoomRepository roomRepository;
+
     private static final Set<String> VALID_WEEKLY_DAYS = Set.of(
             "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"
     );
@@ -103,14 +107,14 @@ public class AppointmentServiceImpl implements AppointmentService {
         // Handle recurring appointments
         if (baseAppointment.getRecurrencePattern() != null) {
             switch (baseAppointment.getRecurrencePattern()) {
-                case Daily:
+                case DAILY:
                     appointments.addAll(createDailyAppointments(baseAppointment));
                     break;
-                case Weekly:
+                case WEEKLY:
                     List<DayOfWeek> weeklyDays = convertToDayOfWeek(createAppointmentDto.getWeeklyDay());
                     appointments.addAll(createWeeklyAppointments(baseAppointment, weeklyDays));
                     break;
-                case Only:
+                case ONLY:
                     appointments.add(baseAppointment);
                     break;
             }
@@ -134,7 +138,10 @@ public class AppointmentServiceImpl implements AppointmentService {
                     .orElseThrow(() -> new RuntimeException("Room not found"));
             appointment.setRoom(room);
         }
-
+        appointment.setDate(LocalDate.parse(createAppointmentDto.getDate()));
+        appointment.setStartTime(LocalTime.parse(createAppointmentDto.getStartTime()));
+        appointment.setEndTime(LocalTime.parse(createAppointmentDto.getEndTime()));
+        appointment.setRecurrenceEndDate(LocalDate.parse(createAppointmentDto.getRecurrenceEndDate()));
         // Set audit fields
         LocalDateTime now = LocalDateTime.now();
         appointment.setCreatedAt(now);
@@ -144,12 +151,19 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setUpdatorId(UserContext.getUser().getUserId());
         appointment.setUpdatorName(UserContext.getUser().getUsername());
 
+        User currentUser = userRepository.findById(UserContext.getUser().getUserId())
+                .orElseThrow(() -> new UserNotFoundException("Current user not found"));
+        // Initialize users set and add creator
+        Set<User> users = new HashSet<>();
+        users.add(currentUser);
         // Set users
         if (createAppointmentDto.getUserIds() != null && !createAppointmentDto.getUserIds().isEmpty()) {
-            Set<User> users = createAppointmentDto.getUserIds().stream()
+            Set<User> additionalUsers = createAppointmentDto.getUserIds().stream()
+                    .filter(userId -> !userId.equals(currentUser.getId())) // Skip if creator is already in the list
                     .map(userId -> userRepository.findById(userId)
                             .orElseThrow(() -> new UserNotFoundException("User not found with id: " + userId)))
                     .collect(Collectors.toSet());
+            users.addAll(additionalUsers);
             appointment.setUsers(users);
         }
 
@@ -164,7 +178,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         while (!startDate.isAfter(endDate)) {
             Appointment newAppointment = cloneAppointment(baseAppointment);
             newAppointment.setDate(startDate);
-            newAppointment.setRecurrencePattern(RecurrencePattern.Only);
+            newAppointment.setRecurrencePattern(RecurrencePattern.ONLY);
             appointments.add(newAppointment);
             startDate = startDate.plusDays(1);
         }
@@ -181,7 +195,7 @@ public class AppointmentServiceImpl implements AppointmentService {
             if (weeklyDays.contains(startDate.getDayOfWeek())) {
                 Appointment newAppointment = cloneAppointment(baseAppointment);
                 newAppointment.setDate(startDate);
-                newAppointment.setRecurrencePattern(RecurrencePattern.Only);
+                    newAppointment.setRecurrencePattern(RecurrencePattern.ONLY);
                 appointments.add(newAppointment);
             }
             startDate = startDate.plusDays(1);
@@ -209,110 +223,154 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     public Map<String, String> validateAppointmentData(CreateAppointmentDto appointmentDto) {
-        // 1. Time validations
-        LocalDate currentDate = LocalDate.now();
         Map<String, String> errors = new HashMap<>();
-        LocalDate date = null;
-        LocalTime startTime = null;
-        LocalTime endTime = null;
 
-        // Validate date
-        if (!dateUtils.isValidDate(appointmentDto.getDate())) {
-            errors.put("date", "Date is invalid format");
-        } else {
-            try {
-                date = LocalDate.parse(appointmentDto.getDate(), formatterDate);
+        // Validate recurrence pattern first since it affects other validations
+        if (!isValidRecurrencePattern(appointmentDto.getRecurrencePattern())) {
+            errors.put("recurrencePattern", "Invalid recurrence pattern. Valid values are: " +
+                    Arrays.stream(RecurrencePattern.values())
+                            .map(Enum::name)
+                            .collect(Collectors.joining(", ")));
+            return errors;
+        }
+        // Convert string to enum once it's validated
+        RecurrencePattern recurrencePattern = RecurrencePattern.valueOf(appointmentDto.getRecurrencePattern().toUpperCase());
+        LocalDate currentDate = LocalDate.now();
+        LocalDate date = parseAndValidateDate(appointmentDto.getDate(), "date", currentDate, errors);
+        LocalDate recurrenceEndDate = null;
 
-                // Thêm validation cho date nếu cần
-                if (date.isBefore(LocalDate.now())) {
-                    errors.put("date", "Date cannot be in the past");
-                }
-            } catch (Exception e) {
-                errors.put("date", "Date is invalid format");
+        // Only validate recurrenceEndDate if pattern is not ONLY
+        if (!RecurrencePattern.ONLY.equals(recurrencePattern)) {
+            recurrenceEndDate = parseAndValidateDate(appointmentDto.getRecurrenceEndDate(), "recurrenceEndDate", currentDate, errors);
+
+            // Additional validation for recurrenceEndDate if both dates are valid
+            if (date != null && recurrenceEndDate != null && recurrenceEndDate.isBefore(date)) {
+                errors.put("recurrenceEndDate", "Recurrence end date must be after or equal to start date");
             }
         }
+        LocalTime startTime = parseAndValidateTime(appointmentDto.getStartTime(), "startTime", errors);
+        LocalTime endTime = parseAndValidateTime(appointmentDto.getEndTime(), "endTime", errors);
 
-        // Validate startTime
-        if (!isValidTime(appointmentDto.getStartTime())) {
-            errors.put("startTime", "Start time is invalid format");
-        } else {
-            try {
-                startTime = LocalTime.parse(appointmentDto.getStartTime(), formatterTime);
-            } catch (Exception e) {
-                errors.put("startTime", "Start time is invalid format");
+        // If basic parsing failed, return early
+        if (!errors.isEmpty()) {
+            return errors;
+        }
+
+        // Validate appointment timing logic
+        validateAppointmentTiming(date, startTime, endTime, errors);
+
+        // Validate recurrence
+        validateRecurrence(appointmentDto, date,recurrenceEndDate,recurrencePattern,errors);
+
+        // Check for conflicts only if no other errors
+        if (errors.isEmpty()) {
+            checkForConflicts(appointmentDto.getRoomId(), date, startTime, endTime, errors);
+        }
+
+        return errors;
+    }
+    private boolean isValidRecurrencePattern(String pattern) {
+        if (pattern == null) return false;
+        try {
+            RecurrencePattern.valueOf(pattern.toUpperCase());
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+    private LocalDate parseAndValidateDate(String dateStr, String fieldName, LocalDate currentDate, Map<String, String> errors) {
+        if (dateStr == null) {
+            errors.put(fieldName, fieldName + " is required");
+            return null;
+        }
+
+        if (!DateUtils.isValidDate(dateStr)) {
+            errors.put(fieldName, fieldName + " is invalid format");
+            return null;
+        }
+        try {
+            LocalDate date = LocalDate.parse(dateStr, formatterDate);
+            if (date.isBefore(currentDate)) {
+                errors.put(fieldName, fieldName + " cannot be in the past");
+            }
+            return date;
+        } catch (DateTimeParseException e) {
+            errors.put(fieldName, fieldName + " is invalid format");
+            return null;
+        }
+    }
+
+    private LocalTime parseAndValidateTime(String timeStr, String fieldName, Map<String, String> errors) {
+        if (!isValidTime(timeStr)) {
+            errors.put(fieldName, fieldName + " is invalid format");
+            return null;
+        }
+
+        try {
+            return LocalTime.parse(timeStr, formatterTime);
+        } catch (DateTimeParseException e) {
+            errors.put(fieldName, fieldName + " is invalid format");
+            return null;
+        }
+    }
+
+    private void validateAppointmentTiming(LocalDate date, LocalTime startTime, LocalTime endTime,
+                                           Map<String, String> errors) {
+        if (date != null && startTime != null && endTime != null) {
+            if (endTime.isBefore(startTime)) {
+                errors.put("endTime", "End time must be after start time");
             }
         }
+    }
 
-        // Validate endTime
-        if (!isValidTime(appointmentDto.getEndTime())) {
-            errors.put("endTime", "End time is invalid format");
-        } else {
-            try {
-                endTime = LocalTime.parse(appointmentDto.getEndTime(), formatterTime);
-            } catch (Exception e) {
-                errors.put("endTime", "End time is invalid format");
+    private void validateRecurrence(CreateAppointmentDto appointmentDto, LocalDate date,LocalDate recurrenceEndDate,RecurrencePattern recurrencePattern,
+                                            Map<String, String> errors) {
+        if (RecurrencePattern.WEEKLY.equals(recurrencePattern)) {
+            validateWeeklyRecurrence(appointmentDto, errors);
+        }
+
+        if (!RecurrencePattern.ONLY.equals(recurrencePattern)) {
+            if (recurrenceEndDate != null && recurrenceEndDate.isBefore(date)) {
+                errors.put("recurrenceEndDate", "Recurrence end date must be after or equal to start date");
             }
         }
+    }
 
-        // Check if appointment date is in the past
-        if (date.isBefore(currentDate)) {
-            errors.put("date","Appointment date cannot be in the past");
-        }
-        if (RecurrencePattern.Weekly.equals(appointmentDto.getRecurrencePattern())) {
-            List<String> weeklyDays = appointmentDto.getWeeklyDay();
-            if (weeklyDays == null || weeklyDays.isEmpty()) {
-                errors.put("weeklyDay", "Weekly days must be specified for weekly recurring appointments");
-            } else {
-                // Kiểm tra format và giá trị hợp lệ của các ngày
-                List<String> invalidDays = weeklyDays.stream()
-                        .filter(day -> !isValidWeekDay(day))
-                        .collect(Collectors.toList());
-
-                if (!invalidDays.isEmpty()) {
-                    errors.put("weeklyDay",
-                            "Invalid week day value(s): " + String.join(", ", invalidDays) +
-                                    ". Valid values are: " + String.join(", ", VALID_WEEKLY_DAYS));
-                }
-            }
-        }
-        // Validate recurrence end date is not before start date
-        if (appointmentDto.getRecurrenceEndDate().isBefore(date)) {
-            errors.put("recurrenceEndDate","Recurrence end date must be after or equal to start date");
-        }
-        // Check if end time is before start time
-        if (endTime.isBefore(startTime)) {
-            errors.put("endTime","End time must be after start time");
+    private void validateWeeklyRecurrence(CreateAppointmentDto appointmentDto, Map<String, String> errors) {
+        List<String> weeklyDays = appointmentDto.getWeeklyDay();
+        if (weeklyDays == null || weeklyDays.isEmpty()) {
+            errors.put("weeklyDay", "Weekly days must be specified for weekly recurring appointments");
+            return;
         }
 
-        // Check recurrence end date if present
-        if (appointmentDto.getRecurrencePattern() != RecurrencePattern.Only) {
-            if (appointmentDto.getRecurrenceEndDate().isBefore(date)) {
-                errors.put("recurrenceEndDate","Recurrence end date must be after appointment date");
-            }
+        List<String> invalidDays = weeklyDays.stream()
+                .filter(day -> !isValidWeekDay(day))
+                .collect(Collectors.toList());
+
+        if (!invalidDays.isEmpty()) {
+            errors.put("weeklyDay",
+                    String.format("Invalid week day value(s): %s. Valid values are: %s",
+                            String.join(", ", invalidDays),
+                            String.join(", ", VALID_WEEKLY_DAYS)));
         }
-        // 2. Conflict validations
+    }
+
+    private void checkForConflicts(int roomId, LocalDate date, LocalTime startTime, LocalTime endTime,
+                                   Map<String, String> errors) {
         List<Appointment> existingAppointments = appointmentRepository
-                .findConflictingAppointments(
-                        appointmentDto.getRoomId(),
-                        date,
-                        startTime,
-                        endTime
-                );
+                .findConflictingAppointments(roomId, date, startTime, endTime);
 
-
-        // Check for time overlaps with existing appointments
         boolean hasConflict = existingAppointments.stream()
-                .anyMatch(existing -> isTimeOverlap(
-                        startTime,
-                        endTime,
-                        existing.getStartTime(),
-                        existing.getEndTime()
-                ));
+                .anyMatch(existing -> isTimeOverlap(startTime, endTime,
+                        existing.getStartTime(), existing.getEndTime()));
 
         if (hasConflict) {
-            errors.put("date","Conflict with existing appointment");
+            errors.put("date", "Conflict with existing appointment");
         }
-        return errors;
+    }
+
+    private boolean isTimeOverlap(LocalTime start1, LocalTime end1, LocalTime start2, LocalTime end2) {
+        return !end1.isBefore(start2) && !end2.isBefore(start1);
     }
     private boolean isValidWeekDay(String day) {
         if (day == null) return false;
@@ -353,9 +411,53 @@ public class AppointmentServiceImpl implements AppointmentService {
             return false;
         }
     }
-    private boolean isTimeOverlap(
-            LocalTime start1, LocalTime end1,
-            LocalTime start2, LocalTime end2) {
-        return !start1.isAfter(end2) && !end1.isBefore(start2);
+    public Appointment updateAppointment(Integer id, CreateAppointmentDto createAppointmentDto){
+        Appointment appointment = appointmentRepository.findById(id)
+                .orElseThrow(() -> new AppointmentValidationException("Appointment not found with id: " + id));
+
+        BeanUtils.copyProperties(createAppointmentDto, appointment);
+
+        // Set room
+        if (createAppointmentDto.getRoomId() != null) {
+            Room room = roomRepository.findById(createAppointmentDto.getRoomId())
+                    .orElseThrow(() -> new RuntimeException("Room not found"));
+            appointment.setRoom(room);
+        }
+        appointment.setDate(LocalDate.parse(createAppointmentDto.getDate()));
+        appointment.setStartTime(LocalTime.parse(createAppointmentDto.getStartTime()));
+        appointment.setEndTime(LocalTime.parse(createAppointmentDto.getEndTime()));
+        appointment.setRecurrenceEndDate(LocalDate.parse(createAppointmentDto.getRecurrenceEndDate()));
+        // Set audit fields
+        LocalDateTime now = LocalDateTime.now();
+        appointment.setUpdatedAt(now);
+        appointment.setUpdatorId(UserContext.getUser().getUserId());
+        appointment.setUpdatorName(UserContext.getUser().getUsername());
+
+        User currentUser = userRepository.findById(UserContext.getUser().getUserId())
+                .orElseThrow(() -> new UserNotFoundException("Current user not found"));
+        // Initialize users set and add creator
+        Set<User> users = new HashSet<>();
+        users.add(currentUser);
+        // Set users
+        if (createAppointmentDto.getUserIds() != null && !createAppointmentDto.getUserIds().isEmpty()) {
+            Set<User> additionalUsers = createAppointmentDto.getUserIds().stream()
+                    .filter(userId -> !userId.equals(currentUser.getId())) // Skip if creator is already in the list
+                    .map(userId -> userRepository.findById(userId)
+                            .orElseThrow(() -> new UserNotFoundException("User not found with id: " + userId)))
+                    .collect(Collectors.toSet());
+            users.addAll(additionalUsers);
+            appointment.setUsers(users);
+        }
+
+        return appointmentRepository.save(appointment);
+    }
+    public void deleteAppointment(Integer id){
+        if(!appointmentRepository.existsById(id)){
+            throw new AppointmentNotFoundException("Todo with id " + id + " not found");
+        }
+        appointmentRepository.deleteById(id);
+    }
+    public Appointment getAppointmentById(Integer id){
+        return appointmentRepository.findById(id).orElseThrow(() -> new AppointmentNotFoundException("Todo with id " + id + " not found"));
     }
 }

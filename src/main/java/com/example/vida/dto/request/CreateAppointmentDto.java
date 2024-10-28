@@ -1,14 +1,10 @@
 package com.example.vida.dto.request;
 
-import com.example.vida.enums.RecurrencePattern;
-import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -37,10 +33,10 @@ public class CreateAppointmentDto {
 
     private String contentBrief;
 
-    @NotNull(message = "Recurrence pattern is required and enum 'daily, only, weekly')")
-    private RecurrencePattern recurrencePattern = RecurrencePattern.Only;
+    @NotNull(message = "Recurrence pattern is required")
+    private String recurrencePattern;
 
-    private LocalDate recurrenceEndDate;
+    private String recurrenceEndDate;
 
     private Set<Integer> userIds = new HashSet<>();
 
