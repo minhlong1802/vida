@@ -1,6 +1,6 @@
 package com.example.vida.service.impl;
 
-import com.example.vida.dto.request.CreateAppointmentDto;
+import com.example.vida.dto.request.RequestAppointmentDto;
 import com.example.vida.entity.Appointment;
 import com.example.vida.entity.Room;
 import com.example.vida.entity.User;
@@ -33,6 +33,9 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static com.example.vida.enums.RecurrencePattern.DAILY;
+import static com.example.vida.enums.RecurrencePattern.WEEKLY;
 
 @Service
 @Transactional
@@ -96,13 +99,13 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     }
 
-    public Appointment createAppointment(CreateAppointmentDto createAppointmentDto) {
-        validateAppointmentData(createAppointmentDto);
+    public Appointment createAppointment(RequestAppointmentDto requestAppointmentDto) {
+        validateAppointmentData(requestAppointmentDto);
 
         List<Appointment> appointments = new ArrayList<>();
 
         // Create base appointment
-        Appointment baseAppointment = createBaseAppointment(createAppointmentDto);
+        Appointment baseAppointment = createBaseAppointment(requestAppointmentDto);
 
         // Handle recurring appointments
         if (baseAppointment.getRecurrencePattern() != null) {
@@ -111,7 +114,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                     appointments.addAll(createDailyAppointments(baseAppointment));
                     break;
                 case WEEKLY:
-                    List<DayOfWeek> weeklyDays = convertToDayOfWeek(createAppointmentDto.getWeeklyDay());
+                    List<DayOfWeek> weeklyDays = convertToDayOfWeek(requestAppointmentDto.getWeeklyDay());
                     appointments.addAll(createWeeklyAppointments(baseAppointment, weeklyDays));
                     break;
                 case ONLY:
@@ -128,20 +131,21 @@ public class AppointmentServiceImpl implements AppointmentService {
         return baseAppointment; // Return the original appointment
     }
 
-    private Appointment createBaseAppointment(CreateAppointmentDto createAppointmentDto) {
+    private Appointment createBaseAppointment(RequestAppointmentDto requestAppointmentDto) {
         Appointment appointment = new Appointment();
-        BeanUtils.copyProperties(createAppointmentDto, appointment);
+        BeanUtils.copyProperties(requestAppointmentDto, appointment);
 
         // Set room
-        if (createAppointmentDto.getRoomId() != null) {
-            Room room = roomRepository.findById(createAppointmentDto.getRoomId())
+        if (requestAppointmentDto.getRoomId() != null) {
+            Room room = roomRepository.findById(requestAppointmentDto.getRoomId())
                     .orElseThrow(() -> new RuntimeException("Room not found"));
             appointment.setRoom(room);
         }
-        appointment.setDate(LocalDate.parse(createAppointmentDto.getDate()));
-        appointment.setStartTime(LocalTime.parse(createAppointmentDto.getStartTime()));
-        appointment.setEndTime(LocalTime.parse(createAppointmentDto.getEndTime()));
-        appointment.setRecurrenceEndDate(LocalDate.parse(createAppointmentDto.getRecurrenceEndDate()));
+        appointment.setDate(LocalDate.parse(requestAppointmentDto.getDate()));
+        appointment.setStartTime(LocalTime.parse(requestAppointmentDto.getStartTime()));
+        appointment.setEndTime(LocalTime.parse(requestAppointmentDto.getEndTime()));
+        appointment.setRecurrenceEndDate(LocalDate.parse(requestAppointmentDto.getRecurrenceEndDate()));
+        appointment.setRecurrencePattern(RecurrencePattern.valueOf(requestAppointmentDto.getRecurrencePattern().toUpperCase()));
         // Set audit fields
         LocalDateTime now = LocalDateTime.now();
         appointment.setCreatedAt(now);
@@ -157,8 +161,8 @@ public class AppointmentServiceImpl implements AppointmentService {
         Set<User> users = new HashSet<>();
         users.add(currentUser);
         // Set users
-        if (createAppointmentDto.getUserIds() != null && !createAppointmentDto.getUserIds().isEmpty()) {
-            Set<User> additionalUsers = createAppointmentDto.getUserIds().stream()
+        if (requestAppointmentDto.getUserIds() != null && !requestAppointmentDto.getUserIds().isEmpty()) {
+            Set<User> additionalUsers = requestAppointmentDto.getUserIds().stream()
                     .filter(userId -> !userId.equals(currentUser.getId())) // Skip if creator is already in the list
                     .map(userId -> userRepository.findById(userId)
                             .orElseThrow(() -> new UserNotFoundException("User not found with id: " + userId)))
@@ -178,7 +182,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         while (!startDate.isAfter(endDate)) {
             Appointment newAppointment = cloneAppointment(baseAppointment);
             newAppointment.setDate(startDate);
-            newAppointment.setRecurrencePattern(RecurrencePattern.ONLY);
+            newAppointment.setRecurrencePattern(DAILY);
             appointments.add(newAppointment);
             startDate = startDate.plusDays(1);
         }
@@ -195,7 +199,7 @@ public class AppointmentServiceImpl implements AppointmentService {
             if (weeklyDays.contains(startDate.getDayOfWeek())) {
                 Appointment newAppointment = cloneAppointment(baseAppointment);
                 newAppointment.setDate(startDate);
-                    newAppointment.setRecurrencePattern(RecurrencePattern.ONLY);
+                    newAppointment.setRecurrencePattern(WEEKLY);
                 appointments.add(newAppointment);
             }
             startDate = startDate.plusDays(1);
@@ -222,7 +226,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         return clone;
     }
 
-    public Map<String, String> validateAppointmentData(CreateAppointmentDto appointmentDto) {
+    public Map<String, String> validateAppointmentData(RequestAppointmentDto appointmentDto) {
         Map<String, String> errors = new HashMap<>();
 
         // Validate recurrence pattern first since it affects other validations
@@ -323,9 +327,9 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
     }
 
-    private void validateRecurrence(CreateAppointmentDto appointmentDto, LocalDate date,LocalDate recurrenceEndDate,RecurrencePattern recurrencePattern,
-                                            Map<String, String> errors) {
-        if (RecurrencePattern.WEEKLY.equals(recurrencePattern)) {
+    private void validateRecurrence(RequestAppointmentDto appointmentDto, LocalDate date, LocalDate recurrenceEndDate, RecurrencePattern recurrencePattern,
+                                    Map<String, String> errors) {
+        if (WEEKLY.equals(recurrencePattern)) {
             validateWeeklyRecurrence(appointmentDto, errors);
         }
 
@@ -336,7 +340,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
     }
 
-    private void validateWeeklyRecurrence(CreateAppointmentDto appointmentDto, Map<String, String> errors) {
+    private void validateWeeklyRecurrence(RequestAppointmentDto appointmentDto, Map<String, String> errors) {
         List<String> weeklyDays = appointmentDto.getWeeklyDay();
         if (weeklyDays == null || weeklyDays.isEmpty()) {
             errors.put("weeklyDay", "Weekly days must be specified for weekly recurring appointments");
@@ -411,45 +415,139 @@ public class AppointmentServiceImpl implements AppointmentService {
             return false;
         }
     }
-    public Appointment updateAppointment(Integer id, CreateAppointmentDto createAppointmentDto){
-        Appointment appointment = appointmentRepository.findById(id)
-                .orElseThrow(() -> new AppointmentValidationException("Appointment not found with id: " + id));
+    public Appointment updateAppointment(Integer id, RequestAppointmentDto requestAppointmentDto) {
+        log.debug("Starting appointment update process for id: {}", id);
 
-        BeanUtils.copyProperties(createAppointmentDto, appointment);
+        // First find the existing appointment
+        Appointment existingAppointment = appointmentRepository.findById(id)
+                .orElseThrow(() -> new AppointmentNotFoundException("Appointment not found with id: " + id));
 
-        // Set room
-        if (createAppointmentDto.getRoomId() != null) {
-            Room room = roomRepository.findById(createAppointmentDto.getRoomId())
-                    .orElseThrow(() -> new RuntimeException("Room not found"));
-            appointment.setRoom(room);
+        try {
+            // Get current user first to fail fast if user not found
+            User currentUser = userRepository.findById(UserContext.getUser().getUserId())
+                    .orElseThrow(() -> new UserNotFoundException("Current user not found"));
+
+            if (requestAppointmentDto.getUpdaterSelection() == 1) {
+                return updateSingleAppointment(existingAppointment, requestAppointmentDto, currentUser);
+            } else if (requestAppointmentDto.getUpdaterSelection() == 2) {
+                return updateRecurringAppointments(existingAppointment, requestAppointmentDto, currentUser);
+            } else {
+                throw new AppointmentValidationException("Invalid updater selection value");
+            }
+
+        } catch (AppointmentNotFoundException | AppointmentValidationException | UserNotFoundException e) {
+            // Log and re-throw these specific exceptions without wrapping
+            log.warn("Validation or not found error: {}", e.getMessage());
+            throw e;
+
+        } catch (Exception e) {
+            // Log unexpected errors
+            log.error("Unexpected error updating appointment: {}", e.getMessage(), e);
+            throw new RuntimeException("Error updating appointment", e);
         }
-        appointment.setDate(LocalDate.parse(createAppointmentDto.getDate()));
-        appointment.setStartTime(LocalTime.parse(createAppointmentDto.getStartTime()));
-        appointment.setEndTime(LocalTime.parse(createAppointmentDto.getEndTime()));
-        appointment.setRecurrenceEndDate(LocalDate.parse(createAppointmentDto.getRecurrenceEndDate()));
-        // Set audit fields
+    }
+
+    private Appointment updateSingleAppointment(Appointment appointment, RequestAppointmentDto requestAppointmentDto, User currentUser) {
+        try {
+            // Copy properties from DTO to entity
+            BeanUtils.copyProperties(requestAppointmentDto, appointment);
+
+            // Update room if provided
+            if (requestAppointmentDto.getRoomId() != null) {
+                Room room = roomRepository.findById(requestAppointmentDto.getRoomId())
+                        .orElseThrow(() -> new AppointmentValidationException("Room not found"));
+                appointment.setRoom(room);
+            }
+
+            // Set date and time fields
+            appointment.setDate(LocalDate.parse(requestAppointmentDto.getDate()));
+            appointment.setStartTime(LocalTime.parse(requestAppointmentDto.getStartTime()));
+            appointment.setEndTime(LocalTime.parse(requestAppointmentDto.getEndTime()));
+            appointment.setRecurrenceEndDate(LocalDate.parse(requestAppointmentDto.getRecurrenceEndDate()));
+
+            // Update audit fields
+            updateAuditFields(appointment);
+
+            // Update users
+            updateAppointmentUsers(appointment, requestAppointmentDto, currentUser);
+
+            return appointmentRepository.save(appointment);
+
+        } catch (Exception e) {
+            log.error("Error updating single appointment: {}", e.getMessage(), e);
+            if (e instanceof AppointmentValidationException || e instanceof UserNotFoundException) {
+                throw e;
+            }
+            throw new AppointmentValidationException("Error updating appointment: " + e.getMessage());
+        }
+    }
+
+    private Appointment updateRecurringAppointments(Appointment existingAppointment, RequestAppointmentDto requestAppointmentDto, User currentUser) {
+        try {
+            // Delete all future appointments from the editing date
+            LocalDate editingDate = LocalDate.parse(requestAppointmentDto.getDate());
+            deleteAppointmentsFromDate(existingAppointment.getId(), editingDate);
+
+            // Create new base appointment
+            Appointment baseAppointment = createBaseAppointment(requestAppointmentDto);
+
+            // Create recurring appointments based on recurrence type
+            List<Appointment> newAppointments = new ArrayList<>();
+            switch (baseAppointment.getRecurrencePattern()) {
+                case DAILY:
+                    newAppointments = createDailyAppointments(baseAppointment);
+                    break;
+                case WEEKLY:
+                    List<DayOfWeek> weeklyDays = convertToDayOfWeek(requestAppointmentDto.getWeeklyDay());
+                    newAppointments = createWeeklyAppointments(baseAppointment,weeklyDays);
+                    break;
+                default:
+                    throw new AppointmentValidationException("Unsupported recurrence type");
+            }
+
+            // Save all new appointments
+            for (Appointment appointment : newAppointments) {
+                updateAuditFields(appointment);
+                updateAppointmentUsers(appointment, requestAppointmentDto, currentUser);
+                appointmentRepository.save(appointment);
+            }
+
+            return newAppointments.isEmpty() ? null : newAppointments.get(0);
+
+        } catch (Exception e) {
+            log.error("Error updating recurring appointments: {}", e.getMessage(), e);
+            if (e instanceof AppointmentValidationException || e instanceof UserNotFoundException) {
+                throw e;
+            }
+            throw new AppointmentValidationException("Error updating recurring appointments: " + e.getMessage());
+        }
+    }
+
+    private void updateAuditFields(Appointment appointment) {
         LocalDateTime now = LocalDateTime.now();
         appointment.setUpdatedAt(now);
         appointment.setUpdatorId(UserContext.getUser().getUserId());
         appointment.setUpdatorName(UserContext.getUser().getUsername());
+    }
 
-        User currentUser = userRepository.findById(UserContext.getUser().getUserId())
-                .orElseThrow(() -> new UserNotFoundException("Current user not found"));
-        // Initialize users set and add creator
+    private void updateAppointmentUsers(Appointment appointment, RequestAppointmentDto requestAppointmentDto, User currentUser) {
         Set<User> users = new HashSet<>();
         users.add(currentUser);
-        // Set users
-        if (createAppointmentDto.getUserIds() != null && !createAppointmentDto.getUserIds().isEmpty()) {
-            Set<User> additionalUsers = createAppointmentDto.getUserIds().stream()
-                    .filter(userId -> !userId.equals(currentUser.getId())) // Skip if creator is already in the list
+
+        if (requestAppointmentDto.getUserIds() != null && !requestAppointmentDto.getUserIds().isEmpty()) {
+            Set<User> additionalUsers = requestAppointmentDto.getUserIds().stream()
+                    .filter(userId -> !userId.equals(currentUser.getId()))
                     .map(userId -> userRepository.findById(userId)
                             .orElseThrow(() -> new UserNotFoundException("User not found with id: " + userId)))
                     .collect(Collectors.toSet());
             users.addAll(additionalUsers);
-            appointment.setUsers(users);
         }
 
-        return appointmentRepository.save(appointment);
+        appointment.setUsers(users);
+    }
+    private void deleteAppointmentsFromDate(Integer appointmentId, LocalDate fromDate) {
+        // Delete all appointments in the series from the specified date
+        appointmentRepository.deleteByIdAndDateGreaterThanEqual(appointmentId, fromDate);
     }
     public void deleteAppointment(Integer id){
         if(!appointmentRepository.existsById(id)){

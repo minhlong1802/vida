@@ -22,4 +22,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
             @Param("startTime") LocalTime startTime,
             @Param("endTime") LocalTime endTime
     );
+    void deleteByIdAndDateGreaterThanEqual(Integer id, LocalDate fromDate);
+
 }

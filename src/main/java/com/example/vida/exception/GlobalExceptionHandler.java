@@ -24,7 +24,6 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST
         );
     }
-
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
         return APIResponse.responseBuilder(

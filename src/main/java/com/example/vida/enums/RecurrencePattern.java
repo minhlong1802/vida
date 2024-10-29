@@ -2,7 +2,7 @@ package com.example.vida.enums;
 
 
 public enum RecurrencePattern {
-    WEEKLY,
+    ONLY,
     DAILY,
-    ONLY
+    WEEKLY,
 }

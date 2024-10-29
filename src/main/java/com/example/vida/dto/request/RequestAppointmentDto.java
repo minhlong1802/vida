@@ -12,7 +12,7 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class CreateAppointmentDto {
+public class RequestAppointmentDto {
     @NotBlank(message = "Title is required")
     @NotNull(message = "Title is required")
     @Size(max = 50, message = "Title must not exceed 50 characters")
@@ -41,4 +41,6 @@ public class CreateAppointmentDto {
     private Set<Integer> userIds = new HashSet<>();
 
     private List<String> weeklyDay;
+
+    private int updaterSelection;
 }
