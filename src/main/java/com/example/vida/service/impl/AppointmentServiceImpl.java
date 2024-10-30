@@ -268,7 +268,14 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         // Check for conflicts only if no other errors
         if (errors.isEmpty()) {
-            checkForConflicts(appointmentDto.getRoomId(), date, startTime, endTime, errors);
+            if(appointmentDto.getUpdaterSelection() == null){
+                checkForConflicts(appointmentDto.getRoomId(), date, startTime, endTime, errors);
+            }
+        }
+        if (appointmentDto.getUpdaterSelection() != null) {
+            if (!appointmentDto.getUpdaterSelection().equals(1) && !appointmentDto.getUpdaterSelection().equals(2)) {
+                errors.put("updaterSelection", "Invalid selection");
+            }
         }
 
         return errors;
@@ -372,7 +379,44 @@ public class AppointmentServiceImpl implements AppointmentService {
             errors.put("date", "Conflict with existing appointment");
         }
     }
+    private void checkForUpdateConflicts(Integer appointmentId, int roomId, LocalDate date,
+                                         LocalTime startTime, LocalTime endTime,
+                                         Map<String, String> errors) {
+        // Get the appointment being updated to identify its series
+        Appointment currentAppointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new AppointmentNotFoundException("Appointment not found with ID: " + appointmentId));
 
+        // 1. Check conflicts with other appointments in the same series
+        List<Appointment> sameSeriesAppointments = appointmentRepository
+                .findAppointmentsInSameSeries(
+                        currentAppointment.getRoom(),
+                        currentAppointment.getStartTime(),
+                        currentAppointment.getEndTime(),
+                        appointmentId,  // exclude current appointment
+                        date  // check for conflicts on the new date
+                );
+
+        if (!sameSeriesAppointments.isEmpty()) {
+            errors.put("date", "Conflict with another appointment in the same series");
+            return; // Early return if there's a series conflict
+        }
+
+        // 2. Check conflicts with other appointments (not in the series)
+        List<Appointment> otherAppointments = appointmentRepository
+                .findConflictingAppointmentsExcludingSeries(
+                        roomId,
+                        date,
+                        startTime,
+                        endTime,
+                        currentAppointment.getRoom(),
+                        currentAppointment.getStartTime(),
+                        currentAppointment.getEndTime()
+                );
+
+        if (!otherAppointments.isEmpty()) {
+            errors.put("date", "Conflict with existing appointment in the room");
+        }
+    }
     private boolean isTimeOverlap(LocalTime start1, LocalTime end1, LocalTime start2, LocalTime end2) {
         return !end1.isBefore(start2) && !end2.isBefore(start1);
     }
@@ -417,11 +461,20 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
     public Appointment updateAppointment(Integer id, RequestAppointmentDto requestAppointmentDto) {
         log.debug("Starting appointment update process for id: {}", id);
+        Map<String, String> errors = validateAppointmentData(requestAppointmentDto);
+        // Check for conflicts
+        checkForUpdateConflicts(
+                id,
+                requestAppointmentDto.getRoomId(),
+                LocalDate.parse(requestAppointmentDto.getDate()),
+                LocalTime.parse(requestAppointmentDto.getStartTime()),
+                LocalTime.parse(requestAppointmentDto.getEndTime()),
+                errors
+        );
 
         // First find the existing appointment
         Appointment existingAppointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new AppointmentNotFoundException("Appointment not found with id: " + id));
-
         try {
             // Get current user first to fail fast if user not found
             User currentUser = userRepository.findById(UserContext.getUser().getUserId())
@@ -484,9 +537,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     private Appointment updateRecurringAppointments(Appointment existingAppointment, RequestAppointmentDto requestAppointmentDto, User currentUser) {
         try {
-            // Delete all future appointments from the editing date
-            LocalDate editingDate = LocalDate.parse(requestAppointmentDto.getDate());
-            deleteAppointmentsFromDate(existingAppointment.getId(), editingDate);
+            deleteRecurringAppointmentsFromDate(existingAppointment.getId());
 
             // Create new base appointment
             Appointment baseAppointment = createBaseAppointment(requestAppointmentDto);
@@ -545,15 +596,41 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         appointment.setUsers(users);
     }
-    private void deleteAppointmentsFromDate(Integer appointmentId, LocalDate fromDate) {
-        // Delete all appointments in the series from the specified date
-        appointmentRepository.deleteByIdAndDateGreaterThanEqual(appointmentId, fromDate);
-    }
-    public void deleteAppointment(Integer id){
-        if(!appointmentRepository.existsById(id)){
-            throw new AppointmentNotFoundException("Todo with id " + id + " not found");
+    public void deleteRecurringAppointmentsFromDate(Integer selectedAppointmentId) {
+        // Get the chosen appointment details
+        Appointment selectedAppointment = appointmentRepository.findById(selectedAppointmentId)
+                .orElseThrow(() -> new AppointmentNotFoundException("Appointment not found with ID: " + selectedAppointmentId));
+
+        // Extract pattern information from the selected appointment
+        LocalDate selectedDate = selectedAppointment.getDate();
+        LocalTime startTime = selectedAppointment.getStartTime();
+        LocalTime endTime = selectedAppointment.getEndTime();
+        Room room = selectedAppointment.getRoom();
+
+        // Validate selected date is not in the past
+        LocalDate now = LocalDate.now();
+        if (selectedDate.isBefore(now)) {
+            throw new IllegalArgumentException("Cannot delete past appointments. Selected date: " + selectedDate);
         }
-        appointmentRepository.deleteById(id);
+
+        // Delete future appointments with same room and time pattern
+        int deletedCount = appointmentRepository.deleteAppointmentsWithSamePatternFromDate(
+                room,
+                startTime,
+                endTime,
+                selectedDate
+        );
+
+        log.info("Deleted {} future appointments with same pattern starting from date {}. Room: {}, Time: {}-{}",
+                deletedCount, selectedDate, room.getId(), startTime, endTime);
+    }
+    public void deleteAppointments(List<Integer> ids) {
+        for (Integer id : ids) {
+            if (!appointmentRepository.existsById(id)) {
+                throw new AppointmentNotFoundException("Appointment with id " + id + " not found");
+            }
+        }
+        appointmentRepository.deleteAllById(ids);
     }
     public Appointment getAppointmentById(Integer id){
         return appointmentRepository.findById(id).orElseThrow(() -> new AppointmentNotFoundException("Todo with id " + id + " not found"));

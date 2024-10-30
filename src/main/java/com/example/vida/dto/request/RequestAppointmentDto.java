@@ -1,5 +1,6 @@
 package com.example.vida.dto.request;
 
+import io.micrometer.common.lang.Nullable;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -42,5 +43,5 @@ public class RequestAppointmentDto {
 
     private List<String> weeklyDay;
 
-    private int updaterSelection;
+    private Integer updaterSelection;
 }

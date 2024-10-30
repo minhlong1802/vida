@@ -15,6 +15,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -138,7 +139,6 @@ public class AppointmentController {
                     HttpStatus.OK
             );
         } catch (AppointmentNotFoundException e) {
-            // Log with appropriate level and include the id
             log.warn("Appointment not found with id: {}", id, e);
             return APIResponse.responseBuilder(
                     null,
@@ -154,19 +154,19 @@ public class AppointmentController {
             );
         }
     }
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Object> deleteAppointment(@PathVariable Integer id){
+    @DeleteMapping()
+    public ResponseEntity<Object> deleteAppointments(@RequestBody List<Integer> ids) {
         try {
-            appointmentService.deleteAppointment(id);
+            appointmentService.deleteAppointments(ids);
             return APIResponse.responseBuilder(
                     null,
-                    "Appointment deleted successfully",
+                    "Appointments deleted successfully",
                     HttpStatus.OK
             );
         } catch (AppointmentNotFoundException e) {
             return APIResponse.responseBuilder(
                     null,
-                    "Appointment with id = "+id+" not found",
+                    e.getMessage(),
                     HttpStatus.NOT_FOUND
             );
         }
