@@ -2,7 +2,10 @@ package com.example.vida.config;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -19,6 +22,15 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint, Se
     public void commence(HttpServletRequest request, HttpServletResponse response,
                          AuthenticationException authException) throws IOException {
 
-        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json");
+
+        Map<String, Object> responseBody = new HashMap<>();
+        responseBody.put("message","Ban khong co quyen thuc hien hanh dong nay");
+        responseBody.put("httpStatus", HttpServletResponse.SC_UNAUTHORIZED);
+
+        ObjectMapper mapper = new ObjectMapper();
+        response.getWriter().write(mapper.writeValueAsString(responseBody));
+
     }
 }

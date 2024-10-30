@@ -8,19 +8,23 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Object> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        String errorMessage = ex.getBindingResult()
-                .getFieldErrors()
-                .get(0)
-                .getDefaultMessage();
+        Map<String, String> errors = new HashMap<>();
+
+        ex.getBindingResult().getFieldErrors().forEach(error -> {
+            errors.put(error.getField(), "Dữ liệu gửi lên không đúng định dạng");
+        });
 
         return APIResponse.responseBuilder(
-                null,
-                errorMessage,
+                errors,
+                "Dữ liệu gửi lên không hợp lệ",
                 HttpStatus.BAD_REQUEST
         );
     }

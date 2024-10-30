@@ -32,6 +32,7 @@ public class Room {
     private String name;
 
     @Column(name = "location", nullable = false, length = 100)
+    @NotBlank(message = "Location is required")
     private String location;
 
     @Column(name = "capacity", nullable = false)

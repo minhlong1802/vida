@@ -1,5 +1,6 @@
 package com.example.vida.service.impl;
 
+import com.example.vida.dto.request.CreateRoomDto;
 import com.example.vida.dto.request.RoomFilterRequest;
 import com.example.vida.entity.Room;
 import com.example.vida.repository.RoomRepository;
@@ -13,16 +14,27 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class RoomServiceImpl implements RoomService {
     private final RoomRepository roomRepository;
+    public boolean postRoom(CreateRoomDto createRoomDto){
+        try {
+            Room room = new Room();
+
+            room.setName(createRoomDto.getRoomName());
+            room.setCapacity(createRoomDto.getCapacity());
+            room.setLocation(createRoomDto.getLocation());
+
+            roomRepository.save(room);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
     @Override
     public Map<String, Object> filterRooms(RoomFilterRequest request) {
@@ -54,9 +66,12 @@ public class RoomServiceImpl implements RoomService {
                             ));
                             break;
                         case "location":
-                            predicates.add(cb.equal(
-                                    cb.lower(root.get("location")),
-                                    value.toLowerCase()
+//                                predicates.add(cb.equal(
+//                                        cb.lower(root.get("location")),
+//                                        value.toLowerCase()
+//                                ));
+                            predicates.add(cb.like(
+                                    cb.lower(root.get("location")), "%" + value.toLowerCase() + "%"
                             ));
                             break;
                         case "capacity":
@@ -108,5 +123,29 @@ public class RoomServiceImpl implements RoomService {
         response.put("totalPage", pageRoom.getTotalPages());
         response.put("totalElements", pageRoom.getTotalElements());
         return response;
+    }
+
+    public boolean updateRoom(Integer id, CreateRoomDto createRoomDto) {
+        Optional<Room> optionalRoom = roomRepository.findById(id);
+        if(optionalRoom.isPresent()){
+            Room existingRoom = optionalRoom.get();
+
+            existingRoom.setName(createRoomDto.getRoomName());
+            existingRoom.setCapacity(createRoomDto.getCapacity());
+            existingRoom.setLocation(createRoomDto.getLocation());
+
+            roomRepository.save(existingRoom);
+            return true;
+        }
+        return false;
+    }
+
+    public void deleteRoom(Integer id){
+        Optional<Room> optionalRoom = roomRepository.findById(id);
+        if (optionalRoom.isPresent()) {
+            roomRepository.deleteById(id);
+        } else {
+            throw new RuntimeException("Room not found");
+        }
     }
 }
