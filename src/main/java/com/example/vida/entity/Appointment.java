@@ -1,6 +1,7 @@
 package com.example.vida.entity;
 
 import com.example.vida.enums.RecurrencePattern;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -32,12 +33,15 @@ public class Appointment {
     private Room room;
 
     @Column(name = "date", nullable = false)
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate date;
 
     @Column(name = "start_time", nullable = false)
+    @JsonFormat(pattern = "HH:mm")
     private LocalTime startTime;
 
     @Column(name = "end_time", nullable = false)
+    @JsonFormat(pattern = "HH:mm")
     private LocalTime endTime;
 
     @Column(name = "content_brief", columnDefinition = "TEXT")
@@ -45,9 +49,10 @@ public class Appointment {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "recurrence_pattern", nullable = false)
-    private RecurrencePattern recurrencePattern = RecurrencePattern.Only;
+    private RecurrencePattern recurrencePattern = RecurrencePattern.ONLY;
 
     @Column(name = "recurrence_end_date")
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate recurrenceEndDate;
 
     @CreationTimestamp
