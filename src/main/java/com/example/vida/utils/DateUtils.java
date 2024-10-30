@@ -57,4 +57,15 @@ public class DateUtils {
             return "";
         }
     }
+
+    public static boolean isValidDate(String dateStr) {
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat(DEFAULT_DATE_FORMAT);
+            sdf.setLenient(false);
+            sdf.parse(dateStr);
+            return true;
+        } catch (ParseException e) {
+            return false;
+        }
+    }
 }
