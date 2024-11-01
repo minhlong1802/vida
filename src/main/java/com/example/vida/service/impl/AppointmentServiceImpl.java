@@ -1,13 +1,12 @@
 package com.example.vida.service.impl;
 
 import com.example.vida.dto.request.RequestAppointmentDto;
+import com.example.vida.dto.response.APIResponse;
 import com.example.vida.entity.Appointment;
 import com.example.vida.entity.Room;
 import com.example.vida.entity.User;
 import com.example.vida.enums.RecurrencePattern;
-import com.example.vida.exception.AppointmentNotFoundException;
-import com.example.vida.exception.AppointmentValidationException;
-import com.example.vida.exception.UserNotFoundException;
+import com.example.vida.exception.*;
 import com.example.vida.repository.AppointmentRepository;
 import com.example.vida.repository.RoomRepository;
 import com.example.vida.repository.UserRepository;
@@ -23,6 +22,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
@@ -134,11 +134,10 @@ public class AppointmentServiceImpl implements AppointmentService {
     private Appointment createBaseAppointment(RequestAppointmentDto requestAppointmentDto) {
         Appointment appointment = new Appointment();
         BeanUtils.copyProperties(requestAppointmentDto, appointment);
-
         // Set room
         if (requestAppointmentDto.getRoomId() != null) {
             Room room = roomRepository.findById(requestAppointmentDto.getRoomId())
-                    .orElseThrow(() -> new RuntimeException("Room not found"));
+                    .orElseThrow(() -> new RoomNotFoundException("Room not found"));
             appointment.setRoom(room);
         }
         appointment.setDate(LocalDate.parse(requestAppointmentDto.getDate()));
@@ -179,6 +178,32 @@ public class AppointmentServiceImpl implements AppointmentService {
         LocalDate startDate = baseAppointment.getDate();
         LocalDate endDate = baseAppointment.getRecurrenceEndDate();
 
+        // Validate all dates first
+        Map<String, String> errors = new HashMap<>();
+        Map<LocalDate, String> conflicts = new HashMap<>();
+
+        LocalDate currentDate = startDate;
+        while (!currentDate.isAfter(endDate)) {
+            checkForConflicts(
+                    baseAppointment.getRoom().getId(),
+                    currentDate,
+                    baseAppointment.getStartTime(),
+                    baseAppointment.getEndTime(),
+                    errors
+            );
+
+            if (errors.containsKey("date")) {
+                conflicts.put(currentDate, errors.get("date"));
+                errors.clear();
+            }
+            currentDate = currentDate.plusDays(1);
+        }
+
+        if (!conflicts.isEmpty()) {
+            throw new ConflictException(conflicts);
+        }
+
+        // Create appointments if no conflicts
         while (!startDate.isAfter(endDate)) {
             Appointment newAppointment = cloneAppointment(baseAppointment);
             newAppointment.setDate(startDate);
@@ -195,11 +220,39 @@ public class AppointmentServiceImpl implements AppointmentService {
         LocalDate startDate = baseAppointment.getDate();
         LocalDate endDate = baseAppointment.getRecurrenceEndDate();
 
+        // Validate all dates first
+        Map<String, String> errors = new HashMap<>();
+        Map<LocalDate, String> conflicts = new HashMap<>();
+
+        LocalDate currentDate = startDate;
+        while (!currentDate.isAfter(endDate)) {
+            if (weeklyDays.contains(currentDate.getDayOfWeek())) {
+                checkForConflicts(
+                        baseAppointment.getRoom().getId(),
+                        currentDate,
+                        baseAppointment.getStartTime(),
+                        baseAppointment.getEndTime(),
+                        errors
+                );
+
+                if (errors.containsKey("date")) {
+                    conflicts.put(currentDate, errors.get("date"));
+                    errors.clear();
+                }
+            }
+            currentDate = currentDate.plusDays(1);
+        }
+
+        if (!conflicts.isEmpty()) {
+            throw new ConflictException(conflicts);
+        }
+
+        // Create appointments if no conflicts
         while (!startDate.isAfter(endDate)) {
             if (weeklyDays.contains(startDate.getDayOfWeek())) {
                 Appointment newAppointment = cloneAppointment(baseAppointment);
                 newAppointment.setDate(startDate);
-                    newAppointment.setRecurrencePattern(WEEKLY);
+                newAppointment.setRecurrencePattern(WEEKLY);
                 appointments.add(newAppointment);
             }
             startDate = startDate.plusDays(1);
@@ -268,9 +321,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         // Check for conflicts only if no other errors
         if (errors.isEmpty()) {
-            if(appointmentDto.getUpdaterSelection() == null){
-                checkForConflicts(appointmentDto.getRoomId(), date, startTime, endTime, errors);
-            }
+            checkForConflicts(appointmentDto.getRoomId(), date, startTime, endTime, errors);
         }
         if (appointmentDto.getUpdaterSelection() != null) {
             if (!appointmentDto.getUpdaterSelection().equals(1) && !appointmentDto.getUpdaterSelection().equals(2)) {
@@ -386,20 +437,6 @@ public class AppointmentServiceImpl implements AppointmentService {
         Appointment currentAppointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new AppointmentNotFoundException("Appointment not found with ID: " + appointmentId));
 
-        // 1. Check conflicts with other appointments in the same series
-        List<Appointment> sameSeriesAppointments = appointmentRepository
-                .findAppointmentsInSameSeries(
-                        currentAppointment.getRoom(),
-                        currentAppointment.getStartTime(),
-                        currentAppointment.getEndTime(),
-                        appointmentId,  // exclude current appointment
-                        date  // check for conflicts on the new date
-                );
-
-        if (!sameSeriesAppointments.isEmpty()) {
-            errors.put("date", "Conflict with another appointment in the same series");
-            return; // Early return if there's a series conflict
-        }
 
         // 2. Check conflicts with other appointments (not in the series)
         List<Appointment> otherAppointments = appointmentRepository
@@ -488,7 +525,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 throw new AppointmentValidationException("Invalid updater selection value");
             }
 
-        } catch (AppointmentNotFoundException | AppointmentValidationException | UserNotFoundException e) {
+        } catch (AppointmentNotFoundException | AppointmentValidationException | UserNotFoundException | RoomNotFoundException | ConflictException e) {
             // Log and re-throw these specific exceptions without wrapping
             log.warn("Validation or not found error: {}", e.getMessage());
             throw e;
@@ -508,7 +545,7 @@ public class AppointmentServiceImpl implements AppointmentService {
             // Update room if provided
             if (requestAppointmentDto.getRoomId() != null) {
                 Room room = roomRepository.findById(requestAppointmentDto.getRoomId())
-                        .orElseThrow(() -> new AppointmentValidationException("Room not found"));
+                        .orElseThrow(() -> new RoomNotFoundException("Room not found"));
                 appointment.setRoom(room);
             }
 
@@ -526,7 +563,9 @@ public class AppointmentServiceImpl implements AppointmentService {
 
             return appointmentRepository.save(appointment);
 
-        } catch (Exception e) {
+        } catch (RoomNotFoundException e){
+            throw new RoomNotFoundException("Room with id"+requestAppointmentDto.getRoomId()+" not found");
+        }catch (Exception e) {
             log.error("Error updating single appointment: {}", e.getMessage(), e);
             if (e instanceof AppointmentValidationException || e instanceof UserNotFoundException) {
                 throw e;
@@ -538,7 +577,6 @@ public class AppointmentServiceImpl implements AppointmentService {
     private Appointment updateRecurringAppointments(Appointment existingAppointment, RequestAppointmentDto requestAppointmentDto, User currentUser) {
         try {
             deleteRecurringAppointmentsFromDate(existingAppointment.getId());
-
             // Create new base appointment
             Appointment baseAppointment = createBaseAppointment(requestAppointmentDto);
 
@@ -565,7 +603,10 @@ public class AppointmentServiceImpl implements AppointmentService {
 
             return newAppointments.isEmpty() ? null : newAppointments.get(0);
 
-        } catch (Exception e) {
+        } catch (ConflictException e){
+            log.warn("Conflict error: {}", e.getMessage());
+            throw e;
+        }catch (Exception e) {
             log.error("Error updating recurring appointments: {}", e.getMessage(), e);
             if (e instanceof AppointmentValidationException || e instanceof UserNotFoundException) {
                 throw e;
@@ -625,13 +666,19 @@ public class AppointmentServiceImpl implements AppointmentService {
                 deletedCount, selectedDate, room.getId(), startTime, endTime);
     }
     public void deleteAppointments(List<Integer> ids) {
-        for (Integer id : ids) {
-            if (!appointmentRepository.existsById(id)) {
-                throw new AppointmentNotFoundException("Appointment with id " + id + " not found");
-            }
+        List<Integer> existingIds = appointmentRepository.findAllExistingIds(ids);
+
+        List<Integer> notFoundIds = ids.stream()
+                .filter(id -> !existingIds.contains(id))
+                .toList();
+
+        if (!notFoundIds.isEmpty()) {
+            throw new AppointmentNotFoundException("Appointments not found for ids: " + notFoundIds);
         }
+
         appointmentRepository.deleteAllById(ids);
     }
+
     public Appointment getAppointmentById(Integer id){
         return appointmentRepository.findById(id).orElseThrow(() -> new AppointmentNotFoundException("Todo with id " + id + " not found"));
     }

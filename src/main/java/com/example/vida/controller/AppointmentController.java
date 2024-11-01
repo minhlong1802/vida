@@ -4,6 +4,8 @@ import com.example.vida.dto.request.RequestAppointmentDto;
 import com.example.vida.dto.response.APIResponse;
 import com.example.vida.entity.Appointment;
 import com.example.vida.exception.AppointmentNotFoundException;
+import com.example.vida.exception.ConflictException;
+import com.example.vida.exception.RoomNotFoundException;
 import com.example.vida.service.AppointmentService;
 import io.micrometer.common.lang.Nullable;
 import jakarta.validation.Valid;
@@ -71,7 +73,19 @@ public class AppointmentController {
                     "Appointment created successfully",
                     HttpStatus.CREATED
             );
-        }  catch (Exception e) {
+        } catch (RoomNotFoundException e){
+            return APIResponse.responseBuilder(
+                    null,
+                    "Room not found",
+                    HttpStatus.BAD_REQUEST
+            );
+        }catch (ConflictException e){
+            return APIResponse.responseBuilder(
+                    null,
+                    e.getMessage(),
+                    HttpStatus.BAD_REQUEST
+            );
+        }catch (Exception e) {
             log.error("Error creating appointment", e);
             return APIResponse.responseBuilder(
                     null,
@@ -109,7 +123,6 @@ public class AppointmentController {
                     errors.put(error.getField(), error.getDefaultMessage())
             );
         }
-
         // 2. Thêm các lỗi từ business validation
         try {
             Map<String, String> businessErrors = appointmentService.validateAppointmentData(requestAppointmentDto);
@@ -145,7 +158,19 @@ public class AppointmentController {
                     e.getMessage(),
                     HttpStatus.NOT_FOUND
             );
-        } catch (Exception e) {
+        } catch (RoomNotFoundException e){
+            return APIResponse.responseBuilder(
+                    null,
+                    "Room not found",
+                    HttpStatus.BAD_REQUEST
+            );
+        }catch (ConflictException e){
+            return APIResponse.responseBuilder(
+                    null,
+                    e.getMessage(),
+                    HttpStatus.BAD_REQUEST
+            );
+        }catch (Exception e) {
             log.error("Unexpected error during appointment update", e);
             return APIResponse.responseBuilder(
                     null,
@@ -157,6 +182,13 @@ public class AppointmentController {
     @DeleteMapping()
     public ResponseEntity<Object> deleteAppointments(@RequestBody List<Integer> ids) {
         try {
+            if(ids.isEmpty()){
+                return APIResponse.responseBuilder(
+                        null,
+                        "Id is required",
+                        HttpStatus.BAD_REQUEST
+                );
+            }
             appointmentService.deleteAppointments(ids);
             return APIResponse.responseBuilder(
                     null,
