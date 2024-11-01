@@ -8,11 +8,9 @@ import lombok.Data;
 
 @Data
 public class CreateRoomDto {
-    @NotBlank(message = "Dữ liệu gửi lên không đúng định dạng")
     @NotBlank(message = "Room name is required")
     private String roomName;
 
-    @NotNull(message = "Dữ liệu gửi lên không đúng định dạng")
     @Min(value = 1, message = "Capacity must be greater than 0")
     @Max(value = 100)
     private Integer capacity;

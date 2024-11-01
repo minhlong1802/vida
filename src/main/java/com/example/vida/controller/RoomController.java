@@ -11,6 +11,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,9 +29,9 @@ public class RoomController {
     @PostMapping
     public ResponseEntity<Object> createRoom(@RequestBody @Valid CreateRoomDto createRoomDto) {
         try {
-            boolean success = roomService.postRoom(createRoomDto);
-            if (success) {
-                return APIResponse.responseBuilder(null, "Room created successfully", HttpStatus.OK);
+            Room room = roomService.postRoom(createRoomDto);
+            if (room != null) {
+                return APIResponse.responseBuilder(room, "Room created successfully", HttpStatus.OK);
             } else {
                 Map<String, String> errors = new HashMap<>();
                 errors.put("error", "Invalid data format");
@@ -63,31 +64,36 @@ public class RoomController {
         }
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<Object> getRoomDetail(@PathVariable Integer id) {
+        try {
+            Room room = roomService.getRoomDetail(id);
+            return APIResponse.responseBuilder(
+                    room,
+                    null,
+                    HttpStatus.OK
+            );
+        } catch (EntityNotFoundException e) {
+            return APIResponse.responseBuilder(
+                    Collections.emptyMap(),
+                    e.getMessage(),
+                    HttpStatus.NOT_FOUND
+            );
+        }
+    }
+
     @PutMapping("{id}")
     public ResponseEntity<Object> updateRoom(@PathVariable Integer id, @RequestBody @Valid CreateRoomDto createRoomDto) {
         try {
-            boolean success = roomService.updateRoom(id, createRoomDto);
-            if (success) {
-                return APIResponse.responseBuilder(null, "Room updated successfully", HttpStatus.OK);
+            Room room = roomService.updateRoom(id, createRoomDto);
+            if (room != null) {
+                return APIResponse.responseBuilder(room, "Room updated successfully", HttpStatus.OK);
             } else {
-                Map<String, String> errors = new HashMap<>();
-                errors.put("error", "Invalid data format");
-                return APIResponse.responseBuilder(errors, "Invalid request data", HttpStatus.BAD_REQUEST);
+                return APIResponse.responseBuilder(null, "ID not found", HttpStatus.NOT_FOUND);
             }
         } catch (UnauthorizedException e) {
             log.error("Unauthorized access", e);
             return APIResponse.responseBuilder(Collections.singletonList("Unauthorized access"), "You are not authorized to perform this action", HttpStatus.UNAUTHORIZED);
-        }
-    }
-
-    @DeleteMapping("{id}")
-    public ResponseEntity<Object> deleteRoom(@PathVariable Integer id) {
-        try {
-            roomService.deleteRoom(id);
-            return APIResponse.responseBuilder(null, "Room deleted successfully", HttpStatus.OK);
-        } catch (EntityNotFoundException e) {
-            log.error("Room not found", e);
-            return APIResponse.responseBuilder(null, "Room not found", HttpStatus.NOT_FOUND);
         }
     }
 }

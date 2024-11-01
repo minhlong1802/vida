@@ -2,12 +2,16 @@ package com.example.vida.service.impl;
 
 import com.example.vida.dto.request.CreateRoomDto;
 import com.example.vida.dto.request.RoomFilterRequest;
+import com.example.vida.dto.response.UserDto;
 import com.example.vida.entity.Room;
 import com.example.vida.repository.RoomRepository;
 import com.example.vida.service.RoomService;
+import com.example.vida.utils.UserContext;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -21,20 +25,26 @@ import java.util.*;
 @Slf4j
 public class RoomServiceImpl implements RoomService {
     private final RoomRepository roomRepository;
-    public boolean postRoom(CreateRoomDto createRoomDto){
+
+    public Room postRoom(CreateRoomDto createRoomDto) {
         try {
             Room room = new Room();
+            UserDto currentUser = UserContext.getUser();
 
             room.setName(createRoomDto.getRoomName());
             room.setCapacity(createRoomDto.getCapacity());
             room.setLocation(createRoomDto.getLocation());
 
-            roomRepository.save(room);
-            return true;
+            room.setCreatorId(currentUser.getUserId());
+            room.setCreatorName(currentUser.getUsername());
+
+            return roomRepository.save(room);
         } catch (Exception e) {
-            return false;
+            log.error("Error creating room", e);
+            return null;
         }
     }
+
 
     @Override
     public Map<String, Object> filterRooms(RoomFilterRequest request) {
@@ -124,28 +134,26 @@ public class RoomServiceImpl implements RoomService {
         response.put("totalElements", pageRoom.getTotalElements());
         return response;
     }
+    public Room getRoomDetail(Integer id) {
+        return roomRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Không tồn tại room với id = " + id));
+    }
 
-    public boolean updateRoom(Integer id, CreateRoomDto createRoomDto) {
+    public Room updateRoom(Integer id, CreateRoomDto createRoomDto) {
         Optional<Room> optionalRoom = roomRepository.findById(id);
-        if(optionalRoom.isPresent()){
+        if (optionalRoom.isPresent()) {
             Room existingRoom = optionalRoom.get();
+            UserDto currentUser = UserContext.getUser();
 
             existingRoom.setName(createRoomDto.getRoomName());
             existingRoom.setCapacity(createRoomDto.getCapacity());
             existingRoom.setLocation(createRoomDto.getLocation());
 
-            roomRepository.save(existingRoom);
-            return true;
-        }
-        return false;
-    }
+            existingRoom.setUpdatorId(currentUser.getUserId());
+            existingRoom.setUpdatorName(currentUser.getUsername());
 
-    public void deleteRoom(Integer id){
-        Optional<Room> optionalRoom = roomRepository.findById(id);
-        if (optionalRoom.isPresent()) {
-            roomRepository.deleteById(id);
-        } else {
-            throw new RuntimeException("Room not found");
+            return roomRepository.save(existingRoom);
         }
+        return null;
     }
 }
