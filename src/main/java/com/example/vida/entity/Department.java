@@ -8,6 +8,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "department")
@@ -22,11 +24,11 @@ public class Department {
     @Column(name = "name", nullable = false, length = 50)
     private String name;
 
-//    @ManyToOne
-//    @JoinColumn(name = "company_id")
-//    private Company company;
-    @Column(name =  "company_id")
-    private int companyId;
+    @ManyToOne
+    @JoinColumn(name = "company_id")
+    private Company company;
+
+
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -47,4 +49,8 @@ public class Department {
 
     @Column(name = "updator_name", length = 20)
     private String updatorName;
+
+    @OneToMany(fetch = FetchType.EAGER, mappedBy = "department")
+    private Set<User> users = new HashSet<>();
+
 }

@@ -28,6 +28,11 @@ public class User {
     @Column(name = "department_id")
     private Integer departmentId;
 
+    @ManyToOne
+    @JoinColumn(name = "department_id", insertable = false, updatable = false)
+    private Department department;
+
+
     @Column(nullable = false)
     private Integer status;
 
