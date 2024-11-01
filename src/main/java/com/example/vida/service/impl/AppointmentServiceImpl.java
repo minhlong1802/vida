@@ -1,7 +1,6 @@
 package com.example.vida.service.impl;
 
 import com.example.vida.dto.request.RequestAppointmentDto;
-import com.example.vida.dto.response.APIResponse;
 import com.example.vida.entity.Appointment;
 import com.example.vida.entity.Room;
 import com.example.vida.entity.User;
@@ -22,7 +21,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
