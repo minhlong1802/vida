@@ -54,4 +54,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     );
     @Query("SELECT a.id FROM Appointment a WHERE a.id IN :ids")
     List<Integer> findAllExistingIds(List<Integer> ids);
+    @Query("SELECT a FROM Appointment a WHERE a.room.id = :roomId AND a.date = :date ORDER BY a.startTime")
+    List<Appointment> findByRoomAndDate(@Param("roomId") Integer roomId, @Param("date") LocalDate date);
 }

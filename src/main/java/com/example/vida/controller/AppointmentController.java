@@ -2,6 +2,7 @@ package com.example.vida.controller;
 
 import com.example.vida.dto.request.RequestAppointmentDto;
 import com.example.vida.dto.response.APIResponse;
+import com.example.vida.dto.response.UnavailableTimeSlotDTO;
 import com.example.vida.entity.Appointment;
 import com.example.vida.exception.AppointmentNotFoundException;
 import com.example.vida.exception.ConflictException;
@@ -11,11 +12,13 @@ import io.micrometer.common.lang.Nullable;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -201,6 +204,13 @@ public class AppointmentController {
                     e.getMessage(),
                     HttpStatus.NOT_FOUND
             );
+        }catch (Exception e) {
+            log.error("Unexpected error during deleting update", e);
+            return APIResponse.responseBuilder(
+                    null,
+                    "An unexpected error occurred while deleting the appointment",
+                    HttpStatus.INTERNAL_SERVER_ERROR
+            );
         }
     }
     @GetMapping("/{id}")
@@ -218,7 +228,41 @@ public class AppointmentController {
                     "Appointment with id = "+id+" not found",
                     HttpStatus.NOT_FOUND
             );
+        }catch (Exception e) {
+            log.error("Unexpected error during getting detail of appointment", e);
+            return APIResponse.responseBuilder(
+                    null,
+                    "An unexpected error occurred while getting detail of appointment",
+                    HttpStatus.INTERNAL_SERVER_ERROR
+            );
         }
-
+    }
+    @GetMapping("/unavailable/{roomId}")
+    public ResponseEntity<Object> getUnavailableTime(
+            @PathVariable Integer roomId,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date
+    ) {
+        try{
+            List<UnavailableTimeSlotDTO> unavailableSlots =
+                    appointmentService.getUnavailableTimeByRoomId(roomId, date);
+            return APIResponse.responseBuilder(
+                    unavailableSlots,
+                    "Unavailable Time get successfully",
+                    HttpStatus.OK
+            );
+        }catch (RoomNotFoundException e){
+            return APIResponse.responseBuilder(
+                    null,
+                    "Room with id="+roomId+" not found",
+                    HttpStatus.BAD_REQUEST
+            );
+        }catch (Exception e) {
+            log.error("Unexpected error during getting unavailable time", e);
+            return APIResponse.responseBuilder(
+                    null,
+                    "An unexpected error occurred while getting unavailable time",
+                    HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
     }
 }
