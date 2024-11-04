@@ -682,34 +682,50 @@ public class AppointmentServiceImpl implements AppointmentService {
         return appointmentRepository.findById(id).orElseThrow(() -> new AppointmentNotFoundException("Todo with id " + id + " not found"));
     }
 
-    public List<UnavailableTimeSlotDTO> getUnavailableTimeByRoomId(Integer roomId, LocalDate date) {
-        if (!roomRepository.existsById(roomId)) {
-            throw new RoomNotFoundException("Room with id="+roomId+" not found!");
-        }
-        List<Appointment> appointments = appointmentRepository.findByRoomAndDate(roomId, date);
-        List<UnavailableTimeSlotDTO> unavailableTimeSlots = new ArrayList<>();
-
-        for (Appointment appointment : appointments) {
-            UnavailableTimeSlotDTO slot = new UnavailableTimeSlotDTO();
-            slot.setStartTime(appointment.getStartTime());
-            slot.setEndTime(appointment.getEndTime());
-
-            // Check if we can merge with previous slot
-            if (!unavailableTimeSlots.isEmpty()) {
-                UnavailableTimeSlotDTO lastSlot = unavailableTimeSlots.get(unavailableTimeSlots.size() - 1);
-                if (!lastSlot.getEndTime().isBefore(slot.getStartTime())) {
-                    // Merge overlapping slots
-                    lastSlot.setEndTime(
-                            lastSlot.getEndTime().isAfter(slot.getEndTime())
-                                    ? lastSlot.getEndTime()
-                                    : slot.getEndTime()
-                    );
-                    continue;
-                }
+    public List<UnavailableTimeSlotDTO> getUnavailableTimeByRoomId(String roomId, String date) {
+        try {
+            int roomID = Integer.parseInt(roomId);
+            if (!roomRepository.existsById(roomID)) {
+                throw new RoomNotFoundException("Room with id=" + roomId + " not found!");
             }
-            unavailableTimeSlots.add(slot);
-        }
 
-        return unavailableTimeSlots;
+            if (!DateUtils.isValidDate(date)) {
+                throw new ValidationException("Date is in an invalid format");
+            }
+
+            LocalDate inputDate;
+            try {
+                inputDate = LocalDate.parse(date);
+            } catch (DateTimeParseException e) {
+                throw new ValidationException("Date is in an invalid format: " + date);
+            }
+
+            List<Appointment> appointments = appointmentRepository.findByRoomAndDate(roomID, inputDate);
+            List<UnavailableTimeSlotDTO> unavailableTimeSlots = new ArrayList<>();
+
+            for (Appointment appointment : appointments) {
+                UnavailableTimeSlotDTO slot = new UnavailableTimeSlotDTO();
+                slot.setStartTime(appointment.getStartTime());
+                slot.setEndTime(appointment.getEndTime());
+
+                if (!unavailableTimeSlots.isEmpty()) {
+                    UnavailableTimeSlotDTO lastSlot = unavailableTimeSlots.get(unavailableTimeSlots.size() - 1);
+                    if (!lastSlot.getEndTime().isBefore(slot.getStartTime())) {
+                        lastSlot.setEndTime(
+                                lastSlot.getEndTime().isAfter(slot.getEndTime())
+                                        ? lastSlot.getEndTime()
+                                        : slot.getEndTime()
+                        );
+                        continue;
+                    }
+                }
+                unavailableTimeSlots.add(slot);
+            }
+
+            return unavailableTimeSlots;
+
+        } catch (NumberFormatException e) {
+            throw new ValidationException("Invalid room ID format: " + roomId);
+        }
     }
 }

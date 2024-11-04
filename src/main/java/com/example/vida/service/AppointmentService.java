@@ -15,5 +15,5 @@ public interface AppointmentService {
     Appointment updateAppointment(Integer id, RequestAppointmentDto requestAppointmentDto);
     Appointment getAppointmentById(Integer id);
     void deleteAppointments(List<Integer> ids);
-    List<UnavailableTimeSlotDTO> getUnavailableTimeByRoomId(Integer roomId, LocalDate date);
+    List<UnavailableTimeSlotDTO> getUnavailableTimeByRoomId(String roomId, String date);
 }

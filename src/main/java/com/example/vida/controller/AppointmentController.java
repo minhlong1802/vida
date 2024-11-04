@@ -7,9 +7,11 @@ import com.example.vida.entity.Appointment;
 import com.example.vida.exception.AppointmentNotFoundException;
 import com.example.vida.exception.ConflictException;
 import com.example.vida.exception.RoomNotFoundException;
+import com.example.vida.exception.ValidationException;
 import com.example.vida.service.AppointmentService;
 import io.micrometer.common.lang.Nullable;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -80,7 +82,7 @@ public class AppointmentController {
             return APIResponse.responseBuilder(
                     null,
                     "Room not found",
-                    HttpStatus.BAD_REQUEST
+                    HttpStatus.NOT_FOUND
             );
         }catch (ConflictException e){
             return APIResponse.responseBuilder(
@@ -165,7 +167,7 @@ public class AppointmentController {
             return APIResponse.responseBuilder(
                     null,
                     "Room not found",
-                    HttpStatus.BAD_REQUEST
+                    HttpStatus.NOT_FOUND
             );
         }catch (ConflictException e){
             return APIResponse.responseBuilder(
@@ -239,8 +241,8 @@ public class AppointmentController {
     }
     @GetMapping("/unavailable/{roomId}")
     public ResponseEntity<Object> getUnavailableTime(
-            @PathVariable Integer roomId,
-            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date
+            @PathVariable String roomId,
+            @Nullable @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") String date
     ) {
         try{
             List<UnavailableTimeSlotDTO> unavailableSlots =
@@ -254,6 +256,18 @@ public class AppointmentController {
             return APIResponse.responseBuilder(
                     null,
                     "Room with id="+roomId+" not found",
+                    HttpStatus.NOT_FOUND
+            );
+        }catch (NullPointerException e){
+            return APIResponse.responseBuilder(
+                    null,
+                    "Date cannot be null",
+                    HttpStatus.BAD_REQUEST
+            );
+        } catch (ValidationException e){
+            return APIResponse.responseBuilder(
+                    null,
+                    e.getMessage(),
                     HttpStatus.BAD_REQUEST
             );
         }catch (Exception e) {
