@@ -707,18 +707,20 @@ public class AppointmentServiceImpl implements AppointmentService {
                 UnavailableTimeSlotDTO slot = new UnavailableTimeSlotDTO();
                 slot.setStartTime(appointment.getStartTime());
                 slot.setEndTime(appointment.getEndTime());
+                slot.setTitle(appointment.getTitle());
+                slot.setUsers(appointment.getUsers());
 
-                if (!unavailableTimeSlots.isEmpty()) {
-                    UnavailableTimeSlotDTO lastSlot = unavailableTimeSlots.get(unavailableTimeSlots.size() - 1);
-                    if (!lastSlot.getEndTime().isBefore(slot.getStartTime())) {
-                        lastSlot.setEndTime(
-                                lastSlot.getEndTime().isAfter(slot.getEndTime())
-                                        ? lastSlot.getEndTime()
-                                        : slot.getEndTime()
-                        );
-                        continue;
-                    }
-                }
+//                if (!unavailableTimeSlots.isEmpty()) {
+//                    UnavailableTimeSlotDTO lastSlot = unavailableTimeSlots.get(unavailableTimeSlots.size() - 1);
+//                    if (!lastSlot.getEndTime().isBefore(slot.getStartTime())) {
+//                        lastSlot.setEndTime(
+//                                lastSlot.getEndTime().isAfter(slot.getEndTime())
+//                                        ? lastSlot.getEndTime()
+//                                        : slot.getEndTime()
+//                        );
+//                        continue;
+//                    }
+//                }
                 unavailableTimeSlots.add(slot);
             }
 
