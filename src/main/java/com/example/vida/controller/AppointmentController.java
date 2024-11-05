@@ -242,7 +242,7 @@ public class AppointmentController {
     @GetMapping("/unavailable/{roomId}")
     public ResponseEntity<Object> getUnavailableTime(
             @PathVariable String roomId,
-            @Nullable @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") String date
+            @Nullable @RequestParam String date
     ) {
         try{
             List<UnavailableTimeSlotDTO> unavailableSlots =

@@ -693,11 +693,9 @@ public class AppointmentServiceImpl implements AppointmentService {
                 throw new ValidationException("Date is in an invalid format");
             }
 
-            LocalDate inputDate;
-            try {
-                inputDate = LocalDate.parse(date);
-            } catch (DateTimeParseException e) {
-                throw new ValidationException("Date is in an invalid format: " + date);
+            LocalDate inputDate = DateUtils.stringToLocalDate(date, DEFAULT_DATE_FORMAT);
+            if (inputDate == null) {
+                throw new ValidationException("Date is in an invalid format");
             }
 
             List<Appointment> appointments = appointmentRepository.findByRoomAndDate(roomID, inputDate);

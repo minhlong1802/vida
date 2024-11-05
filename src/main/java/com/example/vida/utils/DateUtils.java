@@ -2,6 +2,9 @@ package com.example.vida.utils;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Calendar;
 import java.util.Date;
 
@@ -55,6 +58,15 @@ public class DateUtils {
             return new SimpleDateFormat(format).format(date);
         } catch (Exception e) {
             return "";
+        }
+    }
+
+    public static LocalDate stringToLocalDate(String dateStr, String format) {
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern(format);
+            return LocalDate.parse(dateStr, formatter);
+        } catch (DateTimeParseException e) {
+            return null;
         }
     }
 
