@@ -1,42 +1,50 @@
 package com.example.vida.service.impl;
 
 import com.example.vida.dto.request.CreateUserDto;
+import com.example.vida.entity.Department;
 import com.example.vida.entity.User;
+import com.example.vida.exception.AppointmentNotFoundException;
 import com.example.vida.exception.UserNotFoundException;
 import com.example.vida.exception.UserValidationException;
+import com.example.vida.repository.DepartmentRepository;
 import com.example.vida.repository.UserRepository;
 import com.example.vida.service.UserService;
 import com.example.vida.utils.UserContext;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import com.example.vida.dto.request.UpdateUserRequest;
+import com.example.vida.dto.request.UpdateUserDto;
 import com.example.vida.dto.response.UserResponse;
 
 
-import java.awt.print.Pageable;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 
 
 @Service
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
+    private final DepartmentRepository departmentRepository;
 
     @Autowired
-    public UserServiceImpl(UserRepository userRepository) {
+    public UserServiceImpl(UserRepository userRepository, DepartmentRepository departmentRepository) {
         this.userRepository = userRepository;
+        this.departmentRepository = departmentRepository;
     }
 
     @Override
@@ -49,22 +57,32 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserResponse createUser(CreateUserDto createUserDto) {
-        UserResponse userResponse = new UserResponse();
+    public User createUser(CreateUserDto createUserDto) {
         validateNewUser(createUserDto);
 
         User user = new User();
         BeanUtils.copyProperties(createUserDto, user);
+        user.setPassword(generatePassword(createUserDto));
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
-//        user.setStatus(createUserDto.getStatus());
+        if (createUserDto.getDepartmentId() != null) {
+            Optional<Department> department = departmentRepository.findById(createUserDto.getDepartmentId());
+            user.setDepartment(department.get());
+        }
         user.setCreatorId(UserContext.getUser().getUserId());
         user.setCreatorName(UserContext.getUser().getUsername());
         user.setUpdatorId(UserContext.getUser().getUserId());
         user.setUpdatorName(UserContext.getUser().getUsername());
         User createdUser=userRepository.save(user);
         // map tu entity to response
-        return mapUserToResponse(createdUser);
+        return createdUser;
+    }
+
+
+
+    private String generatePassword(CreateUserDto createUserDto) {
+        String formattedDob = createUserDto.getDob().format(DateTimeFormatter.ofPattern("ddMMyyyy"));
+        return formattedDob;
     }
 
     private void validateNewUser(CreateUserDto createUserDto) {
@@ -92,7 +110,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserResponse updateUser(Integer id, UpdateUserRequest request) {
+    public User updateUser(Integer id, UpdateUserDto request) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
 
@@ -103,32 +121,77 @@ public class UserServiceImpl implements UserService {
         user.setUpdatorName(UserContext.getUser().getUsername()); // Assuming the updator name is Admin, you might want to get this from authenticated user
 
         User updatedUser = userRepository.save(user);
-        return mapUserToResponse(updatedUser);
+        return updatedUser;
     }
 
     @Override
-    public void deleteUser(Integer id) throws UserNotFoundException {
-        userRepository.deleteById(id);
+    public org.springframework.security.core.userdetails.User deleteUser(Integer id) throws UserNotFoundException {
+
         if (!userRepository.existsById(id)) {
             throw new UserNotFoundException("User not found with id: " + id);
+        } else {
+            userRepository.deleteById(id);
         }
+        return null;
+
     }
 
     @Override
-    public UserResponse getUserById(Integer id) throws UserNotFoundException {
+    public User getUserById(Integer id) throws UserNotFoundException {
         User user = userRepository.findById(id)
                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
-        return mapUserToResponse(user);
+        return user;
+    }
+
+    public void deleteUsers(List<Integer> ids) {
+        for (Integer id : ids) {
+            if (!userRepository.existsById(id)) {
+                throw new UserNotFoundException("User with id " + id + " not found");
+            }
+        }
+        userRepository.deleteAllById(ids);
     }
 
     @Override
-    public List<User> searchUsersByName(String searchText) throws UserNotFoundException {
-        List<User> users = userRepository.findUsersByUsernameContaining(searchText);
-        if (users.isEmpty()) {
-            throw new UserNotFoundException("User not found with name: " + searchText);
+    public Map<String, Object> searchUsersByName(String searchText, Integer companyId, Integer departmentId, Integer status, Integer page, Integer size) {
+        try {
+            if (page > 0) {
+                page = page - 1;
+            }
+            Pageable pageable = PageRequest.of(page, size);
+            Specification<User> sepecification = new Specification<User>() {
+                @Override
+                public Predicate toPredicate(Root<User> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) {
+                    List<Predicate> predicates = new ArrayList<>();
+                    if (searchText != null) {
+                        predicates.add(criteriaBuilder.like(root.get("username"), "%" + searchText + "%"));
+                    }
+                    if (companyId != null) {
+                        predicates.add(criteriaBuilder.equal(root.get("department").get("company").get("id"), companyId));
+                    }
+                    if (departmentId != null) {
+                        predicates.add(criteriaBuilder.equal(root.get("department").get("id"),departmentId));
+                    }
+                    if (status != null) {
+                        predicates.add(criteriaBuilder.equal(root.get("status"),status));
+                    }
+                    return criteriaBuilder.and(predicates.toArray(new Predicate[predicates.size()]));
+                }
+            };
+
+            Page<User> pageUser = userRepository.findAll(sepecification, pageable);
+            Map<String, Object> mapUser = new HashMap<>();
+            mapUser.put("list", pageUser.getContent());
+            mapUser.put("pageSize", pageUser.getSize());
+            mapUser.put("pageNo", pageUser.getNumber()+1);
+            mapUser.put("totalPage", pageUser.getTotalPages());
+            return mapUser;
+        }catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
-        return users;
     }
+
 
     @Override
     public byte[] exportUsers() {
@@ -154,7 +217,7 @@ public class UserServiceImpl implements UserService {
             row.createCell(0).setCellValue(user.getId());
             row.createCell(1).setCellValue(user.getUsername());
             row.createCell(2).setCellValue(user.getEmail());
-            row.createCell(3).setCellValue(user.getDepartmentId());
+//            row.createCell(3).setCellValue(user.getDepartmentId());
             row.createCell(4).setCellValue(user.getStatus());
             row.createCell(5).setCellValue(user.getDob().toString());
             row.createCell(6).setCellValue(user.getPhoneNumber());
@@ -180,10 +243,16 @@ public class UserServiceImpl implements UserService {
     }
 
 
-    private void updateUserFromRequest(User user, UpdateUserRequest request) {
+    private void updateUserFromRequest(User user, UpdateUserDto request) {
         if (request.getUsername() != null) user.setUsername(request.getUsername());
         if (request.getEmail() != null) user.setEmail(request.getEmail());
-        if (request.getDepartmentId() != null) user.setDepartmentId(request.getDepartmentId());
+        if (request.getDepartmentId() != null) {
+
+            //tim trong db ban ghi department vs id la request.getDepartmentId()
+            //....
+            Optional<Department> department = departmentRepository.findById(request.getDepartmentId());
+            user.setDepartment(department.get());
+        }
         if (request.getStatus() != null) user.setStatus(request.getStatus());
         if (request.getDob() != null) user.setDob(request.getDob());
         if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber());

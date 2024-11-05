@@ -2,39 +2,29 @@ package com.example.vida.controller;
 
 import com.example.vida.dto.request.CreateUserDto;
 import com.example.vida.dto.request.LoginRequest;
+import com.example.vida.dto.request.UpdateUserDto;
 import com.example.vida.dto.response.APIResponse;
-import com.example.vida.dto.request.UpdateUserRequest;
-import com.example.vida.dto.response.APIResponse;
-import com.example.vida.dto.response.LoginResponse;
 import com.example.vida.dto.response.UserResponse;
 import com.example.vida.entity.User;
+import com.example.vida.exception.AppointmentNotFoundException;
 import com.example.vida.exception.UserNotFoundException;
 import com.example.vida.service.UserService;
 import com.example.vida.utils.JwtTokenUtils;
 import com.example.vida.utils.UserContext;
 import jakarta.validation.Valid;
-import jakarta.validation.Valid;
-import lombok.Getter;
-import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.http.*;
-import org.springframework.lang.Nullable;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import java.awt.print.Pageable;
-import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -107,22 +97,22 @@ public class UserController {
     @PostMapping("api/users")
     public ResponseEntity<Object> createUser(@Valid @RequestBody CreateUserDto createUserDto) {
         try {
-            UserResponse createdUser = userService.createUser(createUserDto);
-            return APIResponse.ResponseBuilder(createdUser, "Success", HttpStatus.OK);
+            User createdUser = userService.createUser(createUserDto);
+            return APIResponse.responseBuilder(createdUser, "Success", HttpStatus.OK);
         } catch (Exception e) {
-            return APIResponse.ResponseBuilder(e.getMessage(),"Error", HttpStatus.INTERNAL_SERVER_ERROR);
+            return APIResponse.responseBuilder(e.getMessage(),"Error", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
     @PutMapping("api/users/{id}")
-    public ResponseEntity<Object> updateUser(@Valid @PathVariable Integer id, @RequestBody UpdateUserRequest request) {
+    public ResponseEntity<Object> updateUser(@Valid @PathVariable Integer id, @RequestBody UpdateUserDto request) {
         try {
-            UserResponse updatedUser = userService.updateUser(id, request);
-            return APIResponse.ResponseBuilder(updatedUser, "Success", HttpStatus.OK);
+            User updatedUser = userService.updateUser(id, request);
+            return APIResponse.responseBuilder(updatedUser, "Success", HttpStatus.OK);
         } catch (UserNotFoundException e) {
-            return APIResponse.ResponseBuilder(null, e.getMessage(), HttpStatus.NOT_FOUND);
+            return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.NOT_FOUND);
 
         } catch (Exception e) {
-            return APIResponse.ResponseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+            return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -130,25 +120,50 @@ public class UserController {
     public ResponseEntity<Object> deleteUser(@PathVariable Integer id) {
         try {
             userService.deleteUser(id);
-            return APIResponse.ResponseBuilder(null, "User deleted successfully", HttpStatus.OK);
+            return APIResponse.responseBuilder(null, "User deleted successfully", HttpStatus.OK);
         } catch (UserNotFoundException e) {
-            return APIResponse.ResponseBuilder(null, e.getMessage(), HttpStatus.NOT_FOUND);
+            return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.NOT_FOUND);
         } catch (Exception e) {
-            return APIResponse.ResponseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+            return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
+    @DeleteMapping("/api/users")
+    public ResponseEntity<Object> deleteUsers(@RequestBody List<Integer> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return APIResponse.responseBuilder(
+                    null,
+                    "No userId provided",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+        try {
+            userService.deleteUsers(ids);
+            return APIResponse.responseBuilder(
+                    null,
+                    "Users deleted successfully",
+                    HttpStatus.OK
+            );
+        } catch (UserNotFoundException e) {
+            return APIResponse.responseBuilder(
+                    null,
+                    e.getMessage(),
+                    HttpStatus.NOT_FOUND
+            );
+        }
+    }
     @GetMapping("api/users")
     public ResponseEntity<Object> getUsers(@RequestParam (required = false) String searchText,
+                                                    @RequestParam (required = false) Integer companyId,
                                                     @RequestParam (required = false) Integer departmentId,
-                                                    @RequestParam (required = false) Boolean status,
+                                                    @RequestParam (required = false) Integer status,
                                                     @RequestParam(defaultValue = "1") Integer page,
                                                     @RequestParam(defaultValue = "10") Integer size) {
         try {
-            List<User> mapUser = userService.searchUsersByName(searchText);
-            return APIResponse.ResponseBuilder(mapUser, null, HttpStatus.OK);
+            Map<String, Object> mapUser = userService.searchUsersByName(searchText,companyId,departmentId,status,page,size);
+            return APIResponse.responseBuilder(mapUser, null, HttpStatus.OK);
         } catch (Exception e) {
-            return APIResponse.ResponseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+            return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -156,12 +171,12 @@ public class UserController {
     @GetMapping("api/users/{id}")
     public ResponseEntity<Object> getUserById(@PathVariable Integer id) {
         try {
-            UserResponse user = userService.getUserById(id);
-            return APIResponse.ResponseBuilder(user, null, HttpStatus.OK);
+            User user = userService.getUserById(id);
+            return APIResponse.responseBuilder(user, null, HttpStatus.OK);
         } catch (UserNotFoundException e) {
-            return APIResponse.ResponseBuilder(null, e.getMessage(), HttpStatus.NOT_FOUND);
+            return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.NOT_FOUND);
         } catch (Exception e) {
-            return APIResponse.ResponseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+            return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 

@@ -19,7 +19,7 @@ public class GlobalExceptionHandler {
                 .get(0)
                 .getDefaultMessage();
 
-        return APIResponse.ResponseBuilder(
+        return APIResponse.responseBuilder(
                 null,
                 errorMessage,
                 HttpStatus.BAD_REQUEST
@@ -27,7 +27,7 @@ public class GlobalExceptionHandler {
     }
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
-        return APIResponse.ResponseBuilder(
+        return APIResponse.responseBuilder(
                 null,
                 "Invalid input format. Please check the request body",
                 HttpStatus.BAD_REQUEST

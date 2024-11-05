@@ -5,10 +5,10 @@ import lombok.Data;
 import java.time.LocalDate;
 
 @Data
-public class UpdateUserRequest {
+public class UpdateUserDto {
     private String username;
     private String email;
-    private Integer departmentId;
+    private Long departmentId;
     private Integer status;
     private LocalDate dob;
     private String phoneNumber;

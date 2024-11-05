@@ -3,11 +3,13 @@ package com.example.vida.dto.request;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.persistence.Transient;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -19,14 +21,11 @@ public class CreateUserDto implements Serializable {
 
 
 
-    private String password;
-
     @NotBlank(message = "Email is required")
     @Email(message = "Invalid email format")
     private String email;
 
-
-    private Integer departmentId;
+    private Long departmentId;
 
     @NotNull(message = "Date of birth is required")
     @Past(message = "Date of birth must be in the past")
@@ -39,28 +38,11 @@ public class CreateUserDto implements Serializable {
     @NotNull(message = "Gender is required")
     private String gender;
 
-
     private String employeeId;
-
 
     @JsonAlias("card_id")
     private String cardId;
 
     private Integer status;
 
-
-
-
-//    public enum Gender {
-//        MALE("Male"),
-//        FEMALE("Female"),
-//        OTHER("Other");
-//
-//        private final String value;
-//
-//        Gender(String value) {
-//            this.value = value;
-//        }
-//
-//    }
 }
