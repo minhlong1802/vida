@@ -2,8 +2,6 @@ package com.example.vida.repository;
 
 import com.example.vida.entity.Appointment;
 import com.example.vida.entity.Room;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.criteria.CriteriaBuilder;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -54,18 +52,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
             @Param("seriesStartTime") LocalTime seriesStartTime,
             @Param("seriesEndTime") LocalTime seriesEndTime
     );
-
-    // For same series check
-    @Query("SELECT a FROM Appointment a WHERE a.room = :room " +
-            "AND a.startTime = :startTime " +
-            "AND a.endTime = :endTime " +
-            "AND a.id != :excludeId " +
-            "AND a.date = :date")
-    List<Appointment> findAppointmentsInSameSeries(
-            @Param("room") Room room,
-            @Param("startTime") LocalTime startTime,
-            @Param("endTime") LocalTime endTime,
-            @Param("excludeId") Integer excludeId,
-            @Param("date") LocalDate date
-    );
+    @Query("SELECT a.id FROM Appointment a WHERE a.id IN :ids")
+    List<Integer> findAllExistingIds(List<Integer> ids);
+    @Query("SELECT a FROM Appointment a WHERE a.room.id = :roomId AND a.date = :date ORDER BY a.startTime")
+    List<Appointment> findByRoomAndDate(@Param("roomId") Integer roomId, @Param("date") LocalDate date);
 }
