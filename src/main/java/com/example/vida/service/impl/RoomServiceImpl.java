@@ -11,12 +11,12 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.BindingResult;
 
 import java.util.*;
 
@@ -45,13 +45,6 @@ public class RoomServiceImpl implements RoomService {
             log.error("Error creating room", e);
             return null;
         }
-    }
-
-
-    @Override
-    public Map<String, String> validateRoomData(CreateRoomDto createRoomDto) {
-        Map<String, String> errors = new HashMap<>();
-        return Map.of();
     }
 
     @Override
