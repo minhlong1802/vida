@@ -28,7 +28,7 @@ public class Appointment {
     @Column(name = "title", length = 50, nullable = false)
     private String title;
 
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "room_id")
     private Room room;
 

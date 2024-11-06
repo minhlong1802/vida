@@ -96,4 +96,21 @@ public class RoomController {
             return APIResponse.responseBuilder(Collections.singletonList("Unauthorized access"), "You are not authorized to perform this action", HttpStatus.UNAUTHORIZED);
         }
     }
+
+    @DeleteMapping()
+    public ResponseEntity<Object> deleteRoomsByIds(@RequestBody List<Integer> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return APIResponse.responseBuilder(null, "Invalid input format. Please check the request body", HttpStatus.BAD_REQUEST);
+        }
+
+        try {
+            roomService.deleteRoomsByIds(ids);
+            return APIResponse.responseBuilder(null, "Rooms deleted successfully", HttpStatus.OK);
+        } catch (EntityNotFoundException e) {
+            return APIResponse.responseBuilder(null, "Some rooms not found", HttpStatus.NOT_FOUND);
+        } catch (UnauthorizedException e) {
+            return APIResponse.responseBuilder(Collections.singletonList("Unauthorized access"), "You are not authorized to perform this action", HttpStatus.UNAUTHORIZED);
+        }
+    }
+
 }

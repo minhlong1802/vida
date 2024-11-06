@@ -25,7 +25,7 @@ import java.util.*;
 @Slf4j
 public class RoomServiceImpl implements RoomService {
     private final RoomRepository roomRepository;
-
+    @Override
     public Room postRoom(CreateRoomDto createRoomDto) {
         try {
             Room room = new Room();
@@ -38,6 +38,8 @@ public class RoomServiceImpl implements RoomService {
             room.setCreatorId(currentUser.getUserId());
             room.setCreatorName(currentUser.getUsername());
 
+            room.setUpdatorId(currentUser.getUserId());
+            room.setUpdatorName(currentUser.getUsername());
             return roomRepository.save(room);
         } catch (Exception e) {
             log.error("Error creating room", e);
@@ -45,6 +47,12 @@ public class RoomServiceImpl implements RoomService {
         }
     }
 
+
+    @Override
+    public Map<String, String> validateRoomData(CreateRoomDto createRoomDto) {
+        Map<String, String> errors = new HashMap<>();
+        return Map.of();
+    }
 
     @Override
     public Map<String, Object> filterRooms(RoomFilterRequest request) {
@@ -134,11 +142,12 @@ public class RoomServiceImpl implements RoomService {
         response.put("totalElements", pageRoom.getTotalElements());
         return response;
     }
+    @Override
     public Room getRoomDetail(Integer id) {
         return roomRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Không tồn tại room với id = " + id));
     }
-
+    @Override
     public Room updateRoom(Integer id, CreateRoomDto createRoomDto) {
         Optional<Room> optionalRoom = roomRepository.findById(id);
         if (optionalRoom.isPresent()) {
@@ -155,5 +164,13 @@ public class RoomServiceImpl implements RoomService {
             return roomRepository.save(existingRoom);
         }
         return null;
+    }
+    @Override
+    public void deleteRoomsByIds(List<Integer> ids) {
+        List<Room> roomsToDelete = (List<Room>) roomRepository.findAllById(ids);
+        if (roomsToDelete.size() != ids.size()) {
+            throw new EntityNotFoundException("Some rooms not found");
+        }
+        roomRepository.deleteAll(roomsToDelete);
     }
 }

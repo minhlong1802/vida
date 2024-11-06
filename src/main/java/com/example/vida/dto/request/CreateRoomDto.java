@@ -13,6 +13,7 @@ public class CreateRoomDto {
 
     @Min(value = 1, message = "Capacity must be greater than 0")
     @Max(value = 100)
+    @NotNull(message = "Capacity is required")
     private Integer capacity;
 
     @NotBlank(message = "Location is required")
