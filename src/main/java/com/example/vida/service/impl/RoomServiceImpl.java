@@ -1,28 +1,50 @@
 package com.example.vida.service.impl;
 
+import com.example.vida.dto.request.CreateRoomDto;
 import com.example.vida.dto.request.RoomFilterRequest;
+import com.example.vida.dto.response.UserDto;
 import com.example.vida.entity.Room;
 import com.example.vida.repository.RoomRepository;
 import com.example.vida.service.RoomService;
+import com.example.vida.utils.UserContext;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class RoomServiceImpl implements RoomService {
     private final RoomRepository roomRepository;
+
+    public Room postRoom(CreateRoomDto createRoomDto) {
+        try {
+            Room room = new Room();
+            UserDto currentUser = UserContext.getUser();
+
+            room.setName(createRoomDto.getRoomName());
+            room.setCapacity(createRoomDto.getCapacity());
+            room.setLocation(createRoomDto.getLocation());
+
+            room.setCreatorId(currentUser.getUserId());
+            room.setCreatorName(currentUser.getUsername());
+
+            return roomRepository.save(room);
+        } catch (Exception e) {
+            log.error("Error creating room", e);
+            return null;
+        }
+    }
+
 
     @Override
     public Map<String, Object> filterRooms(RoomFilterRequest request) {
@@ -54,9 +76,12 @@ public class RoomServiceImpl implements RoomService {
                             ));
                             break;
                         case "location":
-                            predicates.add(cb.equal(
-                                    cb.lower(root.get("location")),
-                                    value.toLowerCase()
+//                                predicates.add(cb.equal(
+//                                        cb.lower(root.get("location")),
+//                                        value.toLowerCase()
+//                                ));
+                            predicates.add(cb.like(
+                                    cb.lower(root.get("location")), "%" + value.toLowerCase() + "%"
                             ));
                             break;
                         case "capacity":
@@ -108,5 +133,27 @@ public class RoomServiceImpl implements RoomService {
         response.put("totalPage", pageRoom.getTotalPages());
         response.put("totalElements", pageRoom.getTotalElements());
         return response;
+    }
+    public Room getRoomDetail(Integer id) {
+        return roomRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Không tồn tại room với id = " + id));
+    }
+
+    public Room updateRoom(Integer id, CreateRoomDto createRoomDto) {
+        Optional<Room> optionalRoom = roomRepository.findById(id);
+        if (optionalRoom.isPresent()) {
+            Room existingRoom = optionalRoom.get();
+            UserDto currentUser = UserContext.getUser();
+
+            existingRoom.setName(createRoomDto.getRoomName());
+            existingRoom.setCapacity(createRoomDto.getCapacity());
+            existingRoom.setLocation(createRoomDto.getLocation());
+
+            existingRoom.setUpdatorId(currentUser.getUserId());
+            existingRoom.setUpdatorName(currentUser.getUsername());
+
+            return roomRepository.save(existingRoom);
+        }
+        return null;
     }
 }

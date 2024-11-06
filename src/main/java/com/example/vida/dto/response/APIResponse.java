@@ -12,8 +12,7 @@ public class APIResponse {
         Map<String, Object> response = new HashMap<>();
         response.put("data", data);
         response.put("message", message);
-        response.put("httpStatus", status.value());
-
+        response.put("status", status.value());
         return new ResponseEntity<>(response, status);
     }
 }
