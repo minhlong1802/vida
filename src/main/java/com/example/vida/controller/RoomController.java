@@ -1,51 +1,46 @@
 package com.example.vida.controller;
 
-import com.example.vida.dto.CreateRoomDto;
-import com.example.vida.entity.Room;
+import com.example.vida.dto.request.RoomFilterRequest;
+import com.example.vida.dto.response.APIResponse;
 import com.example.vida.service.RoomService;
-import lombok.AllArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import java.util.Map;
 
 @RestController
-@AllArgsConstructor
 @RequestMapping("api/rooms")
+@RequiredArgsConstructor
+@Slf4j
 public class RoomController {
-    @Autowired
-    private AuthenticationManager authenticationManager;
-    private RoomService roomService;
+    private final RoomService roomService;
 
-    @Autowired
-    public RoomController(RoomService roomService) {
-        this.roomService = roomService;
-    }
-
-    //Get All Room
-    //http://localhost:8080/api/rooms
-    @GetMapping
-    public ResponseEntity<List<Room>> getAllRooms() {
-        List<Room> rooms = roomService.getAllRooms();
-        return new ResponseEntity<>(rooms, HttpStatus.OK);
-    }
-
-    //Create Room
-    //http://localhost:8080/api/rooms
-    @PostMapping("api/rooms")
-    public ResponseEntity<?> createRoom(@RequestBody CreateRoomDto createRoomDto, BindingResult bindingResult) {
+    @GetMapping()
+    public ResponseEntity<Object> filterRooms(
+            @RequestParam Map<String, String> params) {
         try {
-            if (bindingResult.hasErrors()) {
-                return new ResponseEntity<>(bindingResult.getAllErrors(), HttpStatus.BAD_REQUEST);
-            }
-            Room createdRoom = roomService.createRoom(createRoomDto);
-            return new ResponseEntity<>(createdRoom, HttpStatus.CREATED);
+            Integer page = Integer.valueOf(params.getOrDefault("page", "1"));
+            Integer size = Integer.valueOf(params.getOrDefault("size", "10"));
+
+            params.remove("page");
+            params.remove("size");
+
+            RoomFilterRequest request = new RoomFilterRequest();
+            request.setFilters(params);
+            request.setPage(page);
+            request.setSize(size);
+
+            Map<String, Object> result = roomService.filterRooms(request);
+            return APIResponse.responseBuilder(result, null, HttpStatus.OK);
         } catch (Exception e) {
-            return new ResponseEntity<>("Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
+            log.error("Error while filtering rooms", e);
+            return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 }

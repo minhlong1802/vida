@@ -2,7 +2,10 @@ package com.example.vida.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
@@ -17,6 +20,7 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class Room {
 
     @Id
@@ -24,12 +28,14 @@ public class Room {
     private Integer id;
 
     @Column(name = "name", nullable = false, length = 100)
+    @NotBlank(message = "Room name is required")
     private String name;
 
     @Column(name = "location", nullable = false, length = 100)
     private String location;
 
     @Column(name = "capacity", nullable = false)
+    @Min(value = 1, message = "Capacity must be greater than 0")
     private Integer capacity;
 
     @CreationTimestamp

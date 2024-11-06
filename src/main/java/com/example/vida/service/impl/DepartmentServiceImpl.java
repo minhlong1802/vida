@@ -32,7 +32,7 @@ public class DepartmentServiceImpl implements DepartmentService {
                 page = page - 1;
             }
             Pageable pageable = PageRequest.of(page, size);
-            Specification<Department> sepecification = new Specification<Department>() {
+            Specification<Department> specification = new Specification<Department>() {
                 @Override
                 public Predicate toPredicate(Root<Department> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) {
                     List<Predicate> predicates = new ArrayList<>();
@@ -44,14 +44,14 @@ public class DepartmentServiceImpl implements DepartmentService {
                 }
             };
 
-            Page<Department> pageDepartment = departmentRepository.findAll(sepecification, pageable);
+            Page<Department> pageDepartment = departmentRepository.findAll(specification, pageable);
             Map<String, Object> mapDepartment = new HashMap<>();
             mapDepartment.put("listDepartment", pageDepartment.getContent());
             mapDepartment.put("pageSize", pageDepartment.getSize());
-            mapDepartment.put("pageNo", pageDepartment.getNumber()+1);
+            mapDepartment.put("pageNo", pageDepartment.getNumber() + 1);
             mapDepartment.put("totalPage", pageDepartment.getTotalPages());
             return mapDepartment;
-        }catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
