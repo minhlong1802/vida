@@ -11,7 +11,9 @@ import com.example.vida.exception.UserNotFoundException;
 import com.example.vida.service.UserService;
 import com.example.vida.utils.JwtTokenUtils;
 import com.example.vida.utils.UserContext;
+import io.micrometer.common.lang.Nullable;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -32,6 +34,7 @@ import java.util.Map;
 
 @RestController
 @CrossOrigin
+@Slf4j
 public class UserController {
 
     @Autowired
@@ -95,7 +98,38 @@ public class UserController {
     }
 
     @PostMapping("api/users")
-    public ResponseEntity<Object> createUser(@Valid @RequestBody CreateUserDto createUserDto) {
+    public ResponseEntity<Object> createUser(@Valid @RequestBody CreateUserDto createUserDto, BindingResult bindingResult) {
+        // Thu thập tất cả các lỗi validation
+        Map<String, String> errors = new HashMap<>();
+
+        // 1. Thêm các lỗi từ @Valid annotation
+        if (bindingResult.hasErrors()) {
+            bindingResult.getFieldErrors().forEach(error ->
+                    errors.put(error.getField(), error.getDefaultMessage())
+            );
+        }
+
+        // 2. Thêm các lỗi từ business validation
+        try {
+            Map<String, String> businessErrors = userService.validateUserData(createUserDto);
+            errors.putAll(businessErrors);
+        } catch (Exception e) {
+            log.error("Error during business validation", e);
+            return APIResponse.responseBuilder(
+                    null,
+                    "Internal validation error",
+                    HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
+
+        // Nếu có bất kỳ lỗi nào, trả về tất cả các lỗi
+        if (!errors.isEmpty()) {
+            return APIResponse.responseBuilder(
+                    errors,  // Trả về map chứa tất cả các lỗi trong data
+                    "Validation failed",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
         try {
             User createdUser = userService.createUser(createUserDto);
             return APIResponse.responseBuilder(createdUser, "Success", HttpStatus.OK);
@@ -105,6 +139,7 @@ public class UserController {
     }
     @PutMapping("api/users/{id}")
     public ResponseEntity<Object> updateUser(@Valid @PathVariable Integer id, @RequestBody UpdateUserDto request) {
+
         try {
             User updatedUser = userService.updateUser(id, request);
             return APIResponse.responseBuilder(updatedUser, "Success", HttpStatus.OK);
@@ -153,10 +188,10 @@ public class UserController {
         }
     }
     @GetMapping("api/users")
-    public ResponseEntity<Object> getUsers(@RequestParam (required = false) String searchText,
-                                                    @RequestParam (required = false) Integer companyId,
-                                                    @RequestParam (required = false) Integer departmentId,
-                                                    @RequestParam (required = false) Integer status,
+    public ResponseEntity<Object> getUsers(@RequestParam @Nullable String searchText,
+                                                    @RequestParam @Nullable Integer companyId,
+                                                    @RequestParam @Nullable Integer departmentId,
+                                                    @RequestParam @Nullable Integer status,
                                                     @RequestParam(defaultValue = "1") Integer page,
                                                     @RequestParam(defaultValue = "10") Integer size) {
         try {

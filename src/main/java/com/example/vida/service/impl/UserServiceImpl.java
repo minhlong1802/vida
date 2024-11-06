@@ -3,7 +3,6 @@ package com.example.vida.service.impl;
 import com.example.vida.dto.request.CreateUserDto;
 import com.example.vida.entity.Department;
 import com.example.vida.entity.User;
-import com.example.vida.exception.AppointmentNotFoundException;
 import com.example.vida.exception.UserNotFoundException;
 import com.example.vida.exception.UserValidationException;
 import com.example.vida.repository.DepartmentRepository;
@@ -150,6 +149,25 @@ public class UserServiceImpl implements UserService {
             }
         }
         userRepository.deleteAllById(ids);
+    }
+
+    @Override
+    public Map<String, String> validateUserData(CreateUserDto createUserDto) {
+        Map<String, String> errors = new HashMap<>();
+
+        if (!isValidPhoneNumber(createUserDto.getPhoneNumber())) {
+            errors.put("phoneNumber", "Invalid phone number format");
+        }
+
+        if (userRepository.existsByUsername(createUserDto.getUsername())) {
+            errors.put("username", "Username already exists");
+        }
+
+        if (userRepository.existsByEmail(createUserDto.getEmail())) {
+            errors.put("email", "Email already exists");
+        }
+
+        return errors;
     }
 
     @Override

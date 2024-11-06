@@ -39,10 +39,8 @@ public class UserResponse {
     @Pattern(regexp = "(Male|Female|Other)", message = "Invalid gender")
     private String gender;
 
-    @Size(min = 5, max = 10, message = "Employee ID must be between 5 and 10 characters")
     private String employeeId;
 
-    @Size(min = 10, max = 15, message = "Card ID must be between 10 and 15 characters")
     private String cardId;
 
     private LocalDateTime createdAt;
