@@ -6,7 +6,6 @@ import jakarta.validation.constraints.*;
 import lombok.Data;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -43,10 +42,4 @@ public class UserResponse {
 
     private String cardId;
 
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-    private Integer creatorId;
-    private String creatorName;
-    private Integer updatorId;
-    private String updatorName;
 }

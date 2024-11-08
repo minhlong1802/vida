@@ -1,18 +1,15 @@
 package com.example.vida.dto.request;
 
+import com.example.vida.annotation.ValidDate;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import jakarta.persistence.Transient;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 
 @Data
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class CreateUserDto implements Serializable {
 
     @NotBlank(message = "Username is required")
@@ -29,7 +26,9 @@ public class CreateUserDto implements Serializable {
 
     @NotNull(message = "Date of birth is required")
     @Past(message = "Date of birth must be in the past")
+    @ValidDate(message = "Invalid date. Please enter a valid date")
     @JsonFormat(pattern = "yyyy-MM-dd")
+
     private LocalDate dob;
 
     @Pattern(regexp = "0\\d{9}", message = "Phone number must be 10 digits")

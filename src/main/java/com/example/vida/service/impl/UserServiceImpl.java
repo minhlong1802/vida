@@ -1,6 +1,7 @@
 package com.example.vida.service.impl;
 
 import com.example.vida.dto.request.CreateUserDto;
+import com.example.vida.dto.request.UpdateUserDto;
 import com.example.vida.entity.Department;
 import com.example.vida.entity.User;
 import com.example.vida.exception.UserNotFoundException;
@@ -24,9 +25,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import com.example.vida.dto.request.UpdateUserDto;
-import com.example.vida.dto.response.UserResponse;
-
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -99,21 +97,23 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-//    private boolean isValidEmail(String email) {
-//        String emailRegex = "^[A-Za-z0-9+_.-]+@(.+)$";
-//        return email.matches(emailRegex);
-//    }
+
+
+    private boolean isValidEmail(String email) {
+        String emailRegex = "^[A-Za-z0-9+_.-]+@(.+)$";
+        return email.matches(emailRegex);
+    }
     private boolean isValidPhoneNumber(String phoneNumber) {
         String phoneRegex = "0\\d{9}";
         return phoneNumber.matches(phoneRegex);
     }
 
     @Override
-    public User updateUser(Integer id, UpdateUserDto request) {
+    public User updateUser(Integer id, CreateUserDto createUserDto) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
 
-        updateUserFromRequest(user, request);
+        updateUserFromRequest(user, createUserDto);
 
         user.setUpdatedAt(LocalDateTime.now());
         user.setUpdatorId(UserContext.getUser().getUserId()); // Assuming the updator ID is 1, you might want to get this from authenticated user
@@ -132,8 +132,8 @@ public class UserServiceImpl implements UserService {
             userRepository.deleteById(id);
         }
         return null;
-
     }
+
 
     @Override
     public User getUserById(Integer id) throws UserNotFoundException {
@@ -142,13 +142,21 @@ public class UserServiceImpl implements UserService {
         return user;
     }
 
-    public void deleteUsers(List<Integer> ids) {
+    public void deleteUsers(List<Integer> ids) throws UserNotFoundException {
+        List<Integer> notFoundIds = new ArrayList<>();
+        List<Integer> existingIds = new ArrayList<>();
+
         for (Integer id : ids) {
             if (!userRepository.existsById(id)) {
-                throw new UserNotFoundException("User with id " + id + " not found");
+                notFoundIds.add(id);
+            } else {
+                existingIds.add(id);
             }
         }
-        userRepository.deleteAllById(ids);
+        if (!notFoundIds.isEmpty()) {
+            throw new UserNotFoundException("Users not found with ids: " + notFoundIds);
+        }
+        userRepository.deleteAllById(existingIds);
     }
 
     @Override
@@ -166,7 +174,24 @@ public class UserServiceImpl implements UserService {
         if (userRepository.existsByEmail(createUserDto.getEmail())) {
             errors.put("email", "Email already exists");
         }
+        return errors;
+    }
 
+    @Override
+    public Map<String, String> validateUpdateUserData(UpdateUserDto updateUserDto) {
+        Map<String, String> errors = new HashMap<>();
+
+        if (!isValidPhoneNumber(updateUserDto.getPhoneNumber())) {
+            errors.put("phoneNumber", "Invalid phone number format");
+        }
+
+        if (userRepository.existsByUsername(updateUserDto.getUsername())) {
+            errors.put("username", "Username already exists");
+        }
+
+        if (userRepository.existsByEmail(updateUserDto.getEmail())) {
+            errors.put("email", "Email already exists");
+        }
         return errors;
     }
 
@@ -261,28 +286,22 @@ public class UserServiceImpl implements UserService {
     }
 
 
-    private void updateUserFromRequest(User user, UpdateUserDto request) {
-        if (request.getUsername() != null) user.setUsername(request.getUsername());
-        if (request.getEmail() != null) user.setEmail(request.getEmail());
-        if (request.getDepartmentId() != null) {
+    private void updateUserFromRequest(User user, CreateUserDto createUserDto) {
+        if (createUserDto.getUsername() != null) user.setUsername(createUserDto.getUsername());
+        if (createUserDto.getEmail() != null) user.setEmail(createUserDto.getEmail());
+        if (createUserDto.getDepartmentId() != null) {
 
             //tim trong db ban ghi department vs id la request.getDepartmentId()
             //....
-            Optional<Department> department = departmentRepository.findById(request.getDepartmentId());
+            Optional<Department> department = departmentRepository.findById(createUserDto.getDepartmentId());
             user.setDepartment(department.get());
         }
-        if (request.getStatus() != null) user.setStatus(request.getStatus());
-        if (request.getDob() != null) user.setDob(request.getDob());
-        if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber());
-        if (request.getGender() != null) user.setGender(request.getGender());
-        if (request.getEmployeeId() != null) user.setEmployeeId(request.getEmployeeId());
-        if (request.getCardId() != null) user.setCardId(request.getCardId());
-    }
-
-    private UserResponse mapUserToResponse(User user) {
-        UserResponse response = new UserResponse();
-        BeanUtils.copyProperties(user, response);
-        return response;
+        if (createUserDto.getStatus() != null) user.setStatus(createUserDto.getStatus());
+        if (createUserDto.getDob() != null) user.setDob(createUserDto.getDob());
+        if (createUserDto.getPhoneNumber() != null) user.setPhoneNumber(createUserDto.getPhoneNumber());
+        if (createUserDto.getGender() != null) user.setGender(createUserDto.getGender());
+        if (createUserDto.getEmployeeId() != null) user.setEmployeeId(createUserDto.getEmployeeId());
+        if (createUserDto.getCardId() != null) user.setCardId(createUserDto.getCardId());
     }
 
 

@@ -12,7 +12,7 @@ import java.util.Map;
 public interface UserService {
     User getUserByEmailAndPassword(String email, String password);
     com.example.vida.entity.User createUser(CreateUserDto createUserDto);
-    com.example.vida.entity.User updateUser(Integer id, UpdateUserDto request) throws UserNotFoundException;
+    com.example.vida.entity.User updateUser(Integer id, CreateUserDto updateUserDto) throws UserNotFoundException;
     User deleteUser(Integer id) throws UserNotFoundException;
     com.example.vida.entity.User getUserById(Integer id) throws UserNotFoundException;
     Map<String, Object> searchUsersByName(String searchText, Integer companyId, Integer departmentId, Integer status, Integer page, Integer size);
@@ -20,7 +20,9 @@ public interface UserService {
 
     Map<String, Object> getUsers(String searchText, Integer departmentId, Boolean status, Integer page, Integer size);
 
-    void deleteUsers(List<Integer> ids);
+    void deleteUsers(List<Integer> ids) throws UserNotFoundException;
 
     Map<String, String> validateUserData(@Valid CreateUserDto createUserDto);
+
+    Map<String, String> validateUpdateUserData(@Valid UpdateUserDto updateUserDto);
 }
