@@ -22,11 +22,9 @@ public class Department {
     @Column(name = "name", nullable = false, length = 50)
     private String name;
 
-//    @ManyToOne
-//    @JoinColumn(name = "company_id")
-//    private Company company;
-    @Column(name =  "company_id")
-    private int companyId;
+    @ManyToOne
+    @JoinColumn(name = "company_id")
+    private Company company;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

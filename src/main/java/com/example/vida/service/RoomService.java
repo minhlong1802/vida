@@ -3,15 +3,20 @@ package com.example.vida.service;
 import com.example.vida.dto.request.CreateRoomDto;
 import com.example.vida.dto.request.RoomFilterRequest;
 import com.example.vida.entity.Room;
+import org.springframework.validation.BindingResult;
 
 import java.util.List;
 import java.util.Map;
 
 public interface RoomService {
-    Map<String, String> validateRoomData(CreateRoomDto createRoomDto);
+
     Map<String, Object> filterRooms(RoomFilterRequest request);
+
     Room postRoom(CreateRoomDto createRoomDto);
+
     Room updateRoom(Integer id, CreateRoomDto createRoomDto);
+
     Room getRoomDetail(Integer id);
+
     void deleteRoomsByIds(List<Integer> ids);
 }

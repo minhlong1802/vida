@@ -14,8 +14,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import javax.naming.Binding;
 import java.util.*;
 
 @RestController
@@ -27,20 +29,31 @@ public class RoomController {
     private final RoomRepository roomRepository;
 
     @PostMapping
-    public ResponseEntity<Object> createRoom(@RequestBody @Valid CreateRoomDto createRoomDto) {
+    public ResponseEntity<Object> createRoom(@RequestBody @Valid CreateRoomDto createRoomDto, BindingResult bindingResult) {
         try {
+            Map<String, String> errors = new HashMap<>();
+
+            if (bindingResult.hasErrors()) {
+                bindingResult.getFieldErrors().forEach(error ->
+                        errors.put(error.getField(), error.getDefaultMessage())
+                );
+            }
+            if (!errors.isEmpty()) {
+                return APIResponse.responseBuilder(
+                        errors,
+                        "Validation failed",
+                        HttpStatus.BAD_REQUEST
+                );
+            }
             Room room = roomService.postRoom(createRoomDto);
             if (room != null) {
                 return APIResponse.responseBuilder(room, "Room created successfully", HttpStatus.OK);
-            } else {
-                Map<String, String> errors = new HashMap<>();
-                errors.put("error", "Invalid data format");
-                return APIResponse.responseBuilder(errors, "Invalid request data", HttpStatus.BAD_REQUEST);
             }
         } catch (UnauthorizedException e) {
             log.error("Unauthorized access", e);
             return APIResponse.responseBuilder(Collections.singletonList("Unauthorized access"), "You are not authorized to perform this action", HttpStatus.UNAUTHORIZED);
         }
+        return null;
     }
 
     @GetMapping

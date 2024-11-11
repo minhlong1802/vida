@@ -1,5 +1,6 @@
 package com.example.vida.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -45,6 +46,7 @@ public class Company {
     @Column(name = "updator_name", length = 20)
     private String updatorName;
 
-//    @OneToMany(mappedBy = "company")
-//    private List<Department> departments = new ArrayList<>();
+    @OneToMany(mappedBy = "company")
+    @JsonBackReference
+    private List<Department> departments = new ArrayList<>();
 }
