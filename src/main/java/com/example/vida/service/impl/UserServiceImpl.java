@@ -24,6 +24,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
@@ -45,7 +46,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public org.springframework.security.core.userdetails.User getUserByEmailAndPassword(String email, String password){
+    public UserDetails getUserByEmailAndPassword(String email, String password){
         User user = userRepository.findUserByEmailAndPassword(email, password);
         if (user == null) {
             throw new UserNotFoundException("User not found");
@@ -124,7 +125,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public org.springframework.security.core.userdetails.User deleteUser(Integer id) throws UserNotFoundException {
+    public User deleteUser(Integer id) throws UserNotFoundException {
 
         if (!userRepository.existsById(id)) {
             throw new UserNotFoundException("User not found with id: " + id);

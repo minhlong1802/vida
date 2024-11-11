@@ -31,18 +31,14 @@ import java.util.Map;
 @Slf4j
 public class UserController {
 
-    @Autowired
-    private AuthenticationManager authenticationManager;
     private final UserService userService;
     private final JwtTokenUtils jwtTokenUtil;
-    @Autowired
-    private UserDetailServiceImpl userDetailServiceImpl;
+    private final UserDetailServiceImpl userDetailServiceImpl;
 
-    @Autowired
-    public UserController(UserService userService, AuthenticationManager authenticationManager, JwtTokenUtils jwtTokenUtil) {
+    public UserController(UserService userService, JwtTokenUtils jwtTokenUtil, UserDetailServiceImpl userDetailServiceImpl) {
         this.userService = userService;
-        this.authenticationManager = authenticationManager;
         this.jwtTokenUtil = jwtTokenUtil;
+        this.userDetailServiceImpl = userDetailServiceImpl;
     }
 
 

@@ -5,12 +5,13 @@ import com.example.vida.dto.request.UpdateUserDto;
 import com.example.vida.entity.User;
 import com.example.vida.exception.UserNotFoundException;
 import jakarta.validation.Valid;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.List;
 import java.util.Map;
 
 public interface UserService {
-    User getUserByEmailAndPassword(String email, String password);
+    UserDetails getUserByEmailAndPassword(String email, String password);
     com.example.vida.entity.User createUser(CreateUserDto createUserDto);
     com.example.vida.entity.User updateUser(Integer id, CreateUserDto updateUserDto) throws UserNotFoundException;
     User deleteUser(Integer id) throws UserNotFoundException;
