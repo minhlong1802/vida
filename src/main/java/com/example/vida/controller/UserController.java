@@ -1,12 +1,15 @@
 package com.example.vida.controller;
 
+import com.example.vida.dto.request.ChangePasswordRequest;
 import com.example.vida.dto.request.CreateUserDto;
 import com.example.vida.dto.request.LoginRequest;
 import com.example.vida.dto.request.RequestAppointmentDto;
 import com.example.vida.dto.response.APIResponse;
 import com.example.vida.entity.User;
 import com.example.vida.exception.UserNotFoundException;
+import com.example.vida.exception.ValidationException;
 import com.example.vida.service.UserService;
+import com.example.vida.service.impl.UserDetailServiceImpl;
 import com.example.vida.utils.JwtTokenUtils;
 import io.micrometer.common.lang.Nullable;
 import jakarta.validation.Valid;
@@ -23,7 +26,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-
 @RestController
 @CrossOrigin
 @Slf4j
@@ -33,6 +35,8 @@ public class UserController {
     private AuthenticationManager authenticationManager;
     private final UserService userService;
     private final JwtTokenUtils jwtTokenUtil;
+    @Autowired
+    private UserDetailServiceImpl userDetailServiceImpl;
 
     @Autowired
     public UserController(UserService userService, AuthenticationManager authenticationManager, JwtTokenUtils jwtTokenUtil) {
@@ -82,21 +86,46 @@ public class UserController {
         }
 
     }
-
-    //Example for using UserContext
-    @PostMapping( "/hello")
-    public ResponseEntity<Object>  hello(@Valid @RequestBody RequestAppointmentDto dto, BindingResult bindingResult) {
-        Map<String, String> errors = new HashMap<>();
-
-        // 1. Thêm các lỗi từ @Valid annotation
+    @PostMapping("api/auth/change-password")
+    public ResponseEntity<Object> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,BindingResult bindingResult
+    ) {
         if (bindingResult.hasErrors()) {
-            bindingResult.getFieldErrors().forEach(error ->
-                    errors.put(error.getField(), error.getDefaultMessage())
+            Map<String, String> mapError= new HashMap<>();
+            bindingResult.getFieldErrors().forEach(e -> {
+                mapError.put(e.getField(), e.getDefaultMessage());
+            });
+
+            return APIResponse.responseBuilder(
+                    mapError,
+                    "Invalid input",
+                    HttpStatus.BAD_REQUEST
             );
         }
-        return APIResponse.responseBuilder(null, "Success", HttpStatus.OK);
+        try {
+            userDetailServiceImpl.changePassword(request);
+//            String username=UserContext.getUser().getUsername();
+//            final UserDetails userDetails= userDetailServiceImpl.loadUserByUsername(username);
+//            final String newToken = jwtTokenUtil.generateToken(userDetails);
+            return APIResponse.responseBuilder(
+                    null,
+                    "Password changed successfully",
+                    HttpStatus.OK
+            );
+        }  catch (ValidationException e) {
+            return APIResponse.responseBuilder(
+                    null,
+                    "Invalid password: "+e.getMessage(),
+                    HttpStatus.BAD_REQUEST
+            );
+        }catch (Exception e) {
+            return APIResponse.responseBuilder(
+                    null,
+                    "An unexpected error occurred",
+                    HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
     }
-
     @PostMapping("api/users")
     public ResponseEntity<Object> createUser(@Valid @RequestBody CreateUserDto createUserDto, BindingResult bindingResult) {
         // Thu thập tất cả các lỗi validation

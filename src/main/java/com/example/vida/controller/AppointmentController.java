@@ -2,19 +2,26 @@ package com.example.vida.controller;
 
 import com.example.vida.dto.request.RequestAppointmentDto;
 import com.example.vida.dto.response.APIResponse;
+import com.example.vida.dto.response.UnavailableTimeSlotDTO;
 import com.example.vida.entity.Appointment;
 import com.example.vida.exception.AppointmentNotFoundException;
+import com.example.vida.exception.ConflictException;
+import com.example.vida.exception.RoomNotFoundException;
+import com.example.vida.exception.ValidationException;
 import com.example.vida.service.AppointmentService;
 import io.micrometer.common.lang.Nullable;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
@@ -74,7 +81,19 @@ public class AppointmentController {
                     "Appointment created successfully",
                     HttpStatus.CREATED
             );
-        }  catch (Exception e) {
+        } catch (RoomNotFoundException e){
+            return APIResponse.responseBuilder(
+                    null,
+                    "Room not found",
+                    HttpStatus.NOT_FOUND
+            );
+        }catch (ConflictException e){
+            return APIResponse.responseBuilder(
+                    null,
+                    e.getMessage(),
+                    HttpStatus.BAD_REQUEST
+            );
+        }catch (Exception e) {
             log.error("Error creating appointment", e);
             return APIResponse.responseBuilder(
                     null,
@@ -112,7 +131,6 @@ public class AppointmentController {
                     errors.put(error.getField(), error.getDefaultMessage())
             );
         }
-
         // 2. Thêm các lỗi từ business validation
         try {
             Map<String, String> businessErrors = appointmentService.validateAppointmentData(requestAppointmentDto);
@@ -148,7 +166,19 @@ public class AppointmentController {
                     e.getMessage(),
                     HttpStatus.NOT_FOUND
             );
-        } catch (Exception e) {
+        } catch (RoomNotFoundException e){
+            return APIResponse.responseBuilder(
+                    null,
+                    "Room not found",
+                    HttpStatus.NOT_FOUND
+            );
+        }catch (ConflictException e){
+            return APIResponse.responseBuilder(
+                    null,
+                    e.getMessage(),
+                    HttpStatus.BAD_REQUEST
+            );
+        }catch (Exception e) {
             log.error("Unexpected error during appointment update", e);
             return APIResponse.responseBuilder(
                     null,
@@ -160,6 +190,13 @@ public class AppointmentController {
     @DeleteMapping()
     public ResponseEntity<Object> deleteAppointments(@RequestBody List<Integer> ids) {
         try {
+            if(ids.isEmpty()){
+                return APIResponse.responseBuilder(
+                        null,
+                        "Id is required",
+                        HttpStatus.BAD_REQUEST
+                );
+            }
             appointmentService.deleteAppointments(ids);
             return APIResponse.responseBuilder(
                     null,
@@ -171,6 +208,13 @@ public class AppointmentController {
                     null,
                     e.getMessage(),
                     HttpStatus.NOT_FOUND
+            );
+        }catch (Exception e) {
+            log.error("Unexpected error during deleting update", e);
+            return APIResponse.responseBuilder(
+                    null,
+                    "An unexpected error occurred while deleting the appointment",
+                    HttpStatus.INTERNAL_SERVER_ERROR
             );
         }
     }
@@ -189,7 +233,53 @@ public class AppointmentController {
                     "Appointment with id = "+id+" not found",
                     HttpStatus.NOT_FOUND
             );
+        }catch (Exception e) {
+            log.error("Unexpected error during getting detail of appointment", e);
+            return APIResponse.responseBuilder(
+                    null,
+                    "An unexpected error occurred while getting detail of appointment",
+                    HttpStatus.INTERNAL_SERVER_ERROR
+            );
         }
-
+    }
+    @GetMapping("/unavailable/{roomId}")
+    public ResponseEntity<Object> getUnavailableTime(
+            @PathVariable String roomId,
+            @Nullable @RequestParam String date
+    ) {
+        try{
+            List<UnavailableTimeSlotDTO> unavailableSlots =
+                    appointmentService.getUnavailableTimeByRoomId(roomId, date);
+            return APIResponse.responseBuilder(
+                    unavailableSlots,
+                    "Unavailable Time get successfully",
+                    HttpStatus.OK
+            );
+        }catch (RoomNotFoundException e){
+            return APIResponse.responseBuilder(
+                    null,
+                    "Room with id="+roomId+" not found",
+                    HttpStatus.NOT_FOUND
+            );
+        }catch (NullPointerException e){
+            return APIResponse.responseBuilder(
+                    null,
+                    "Date cannot be null",
+                    HttpStatus.BAD_REQUEST
+            );
+        } catch (ValidationException e){
+            return APIResponse.responseBuilder(
+                    null,
+                    e.getMessage(),
+                    HttpStatus.BAD_REQUEST
+            );
+        }catch (Exception e) {
+            log.error("Unexpected error during getting unavailable time", e);
+            return APIResponse.responseBuilder(
+                    null,
+                    "An unexpected error occurred while getting unavailable time",
+                    HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
     }
 }

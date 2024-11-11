@@ -1,6 +1,7 @@
 package com.example.vida.exception;
 
 import com.example.vida.dto.response.APIResponse;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -36,5 +37,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UserValidationException.class)
     public ResponseEntity<Object> handleUserValidationException(UserValidationException ex, WebRequest request) {
         return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<Object> handleEntityNotFoundException(EntityNotFoundException e) {
+        return APIResponse.responseBuilder(
+                null,
+                e.getMessage(),
+                HttpStatus.NOT_FOUND
+        );
     }
 }

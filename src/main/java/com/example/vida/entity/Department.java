@@ -28,8 +28,6 @@ public class Department {
     @JoinColumn(name = "company_id")
     private Company company;
 
-
-
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

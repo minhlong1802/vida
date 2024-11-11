@@ -1,11 +1,14 @@
 package com.example.vida.repository;
 
 import com.example.vida.entity.Room;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.query.Param;
 
-public interface RoomRepository extends JpaRepository<Room, Integer> {
-    Page<Room> findRoomByName(String name, Pageable pageable);
+import java.util.List;
+
+public interface RoomRepository extends CrudRepository<Room, Integer>, JpaSpecificationExecutor<Room> {
+    @Query(nativeQuery = false, value= "SELECT d FROM Room d WHERE LOWER(d.name) LIKE LOWER(CONCAT('%', :searchText, '%'))" )
+    List<Room> searchRoomsByName(@Param("searchText") String searchText);
 }
