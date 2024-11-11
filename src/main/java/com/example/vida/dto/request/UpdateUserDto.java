@@ -8,10 +8,8 @@ import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDate;
-
 @Data
-public class CreateUserDto implements Serializable {
-
+public class UpdateUserDto implements Serializable {
     @NotBlank(message = "Username is required")
     @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters")
     private String username;
@@ -28,7 +26,6 @@ public class CreateUserDto implements Serializable {
     @Past(message = "Date of birth must be in the past")
     @ValidDate(message = "Invalid date. Please enter a valid date")
     @JsonFormat(pattern = "yyyy-MM-dd")
-
     private LocalDate dob;
 
     @Pattern(regexp = "0\\d{9}", message = "Phone number must be 10 digits")
@@ -43,5 +40,4 @@ public class CreateUserDto implements Serializable {
     private String cardId;
 
     private Integer status;
-
 }

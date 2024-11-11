@@ -25,8 +25,10 @@ public class User {
     @Column(unique = true, nullable = false, length = 50)
     private String email;
 
-    @Column(name = "department_id")
-    private Integer departmentId;
+    @ManyToOne
+    @JoinColumn(name = "department_id")
+    private Department department;
+
 
     @Column(nullable = false)
     private Integer status;
@@ -63,6 +65,8 @@ public class User {
 
     @Column(name = "updator_name", length = 20)
     private String updatorName;
+
+
 
 //    @Getter
 //    public enum Gender {
