@@ -46,10 +46,7 @@ public class Company {
     @Column(name = "updator_name", length = 20)
     private String updatorName;
 
-    @OneToMany(mappedBy = "company", fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "company")
     @JsonBackReference
     private List<Department> departments = new ArrayList<>();
-
-//    @OneToMany(mappedBy = "company")
-//    private List<Department> departments = new ArrayList<>();
 }
