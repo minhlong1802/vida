@@ -1,9 +1,11 @@
 package com.example.vida.service.impl;
 
 import com.example.vida.dto.request.CreateDepartmentDto;
+import com.example.vida.dto.request.CreateRoomDto;
 import com.example.vida.dto.response.UserDto;
 import com.example.vida.entity.Company;
 import com.example.vida.entity.Department;
+import com.example.vida.entity.Room;
 import com.example.vida.repository.CompanyRepository;
 import com.example.vida.repository.DepartmentRepository;
 import com.example.vida.service.DepartmentService;
@@ -24,10 +26,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -70,6 +69,7 @@ public class DepartmentServiceImpl implements DepartmentService {
         }
     }
 
+    //Create Department
     @Override
     public Department postDepartment(CreateDepartmentDto createDepartmentDto) {
         try {
@@ -94,18 +94,38 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     @Override
     public Department updateDepartment(Integer id, CreateDepartmentDto createDepartmentDto) {
+        Optional<Department> optionalDeparment = departmentRepository.findById(Long.valueOf(id));
+        if (optionalDeparment.isPresent()) {
+            Department existingDeparment = optionalDeparment.get();
+            UserDto currentUser = UserContext.getUser();
+
+            existingDeparment.setName(createDepartmentDto.getDepartmentName());
+            Company company = companyRepository.findById(Long.valueOf(createDepartmentDto.getCompanyId())).orElse(null);
+            existingDeparment.setCompany(company);
+
+            existingDeparment.setUpdatorId(currentUser.getUserId());
+            existingDeparment.setUpdatorName(currentUser.getUsername());
+
+            return departmentRepository.save(existingDeparment);
+        }
         return null;
     }
 
+    //Get Detail Department
     @Override
     public Department getDepartmentDetail(Integer id) {
         return departmentRepository.findById(Long.valueOf(id))
                 .orElseThrow(() -> new EntityNotFoundException("Không tồn tại department với id = " + id));
     }
 
+    //Delete Department
     @Override
-    public void deleteDepartmentsByIds(List<Integer> ids) {
-
+    public void deleteDepartmentsByIds(List<Long> ids) {
+        List<Department> departmentsToDelete = (List<Department>) departmentRepository.findAllById(ids);
+        if (departmentsToDelete.size() != ids.size()) {
+            throw new EntityNotFoundException("Some departments not found");
+        }
+        departmentRepository.deleteAll(departmentsToDelete);
     }
 
 }

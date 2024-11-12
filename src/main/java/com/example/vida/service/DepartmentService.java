@@ -17,5 +17,5 @@ public interface DepartmentService {
 
     Department getDepartmentDetail(Integer id);
 
-    void deleteDepartmentsByIds(List<Integer> ids);
+    void deleteDepartmentsByIds(List<Long> ids);
 }

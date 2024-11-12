@@ -1,8 +1,10 @@
 package com.example.vida.controller;
 
 import com.example.vida.dto.request.CreateDepartmentDto;
+import com.example.vida.dto.request.CreateRoomDto;
 import com.example.vida.dto.response.APIResponse;
 import com.example.vida.entity.Department;
+import com.example.vida.entity.Room;
 import com.example.vida.exception.UnauthorizedException;
 import com.example.vida.service.DepartmentService;
 import jakarta.persistence.EntityNotFoundException;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -80,6 +83,36 @@ public class DepartmentController {
                     e.getMessage(),
                     HttpStatus.NOT_FOUND
             );
+        }
+    }
+
+    @PutMapping("{id}")
+    public ResponseEntity<Object> updateDepartment(@PathVariable Integer id, @RequestBody @Valid CreateDepartmentDto createDepartmentDto) {
+        try {
+            Department department = departmentService.updateDepartment(id, createDepartmentDto);
+            if (department != null) {
+                return APIResponse.responseBuilder(department, "Department updated successfully", HttpStatus.OK);
+            } else {
+                return APIResponse.responseBuilder(null, "ID not found", HttpStatus.NOT_FOUND);
+            }
+        } catch (UnauthorizedException e) {
+            log.error("Unauthorized access", e);
+            return APIResponse.responseBuilder(Collections.singletonList("Unauthorized access"), "You are not authorized to perform this action", HttpStatus.UNAUTHORIZED);
+        }
+    }
+
+    @DeleteMapping()
+    public ResponseEntity<Object> deleteDepartment(@PathVariable List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return APIResponse.responseBuilder(null, "Invalid input format. Please check the request body", HttpStatus.BAD_REQUEST);
+        }
+        try {
+            departmentService.deleteDepartmentsByIds(ids);
+            return APIResponse.responseBuilder(null, "Departments deleted successfully", HttpStatus.OK);
+        } catch (EntityNotFoundException e) {
+            return APIResponse.responseBuilder(null, "Some departments not found", HttpStatus.NOT_FOUND);
+        } catch (UnauthorizedException e) {
+            return APIResponse.responseBuilder(Collections.singletonList("Unauthorized access"), "You are not authorized to perform this action", HttpStatus.UNAUTHORIZED);
         }
     }
 
