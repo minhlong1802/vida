@@ -1,10 +1,8 @@
 package com.example.vida.controller;
 
 import com.example.vida.dto.request.CreateDepartmentDto;
-import com.example.vida.dto.request.CreateRoomDto;
 import com.example.vida.dto.response.APIResponse;
 import com.example.vida.entity.Department;
-import com.example.vida.entity.Room;
 import com.example.vida.exception.UnauthorizedException;
 import com.example.vida.service.DepartmentService;
 import jakarta.persistence.EntityNotFoundException;
@@ -102,7 +100,7 @@ public class DepartmentController {
     }
 
     @DeleteMapping()
-    public ResponseEntity<Object> deleteDepartment(@PathVariable List<Long> ids) {
+    public ResponseEntity<Object> deleteDepartment(@RequestBody List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return APIResponse.responseBuilder(null, "Invalid input format. Please check the request body", HttpStatus.BAD_REQUEST);
         }
