@@ -17,9 +17,7 @@ public interface UserService {
     User deleteUser(Integer id) throws UserNotFoundException;
     com.example.vida.entity.User getUserById(Integer id) throws UserNotFoundException;
     Map<String, Object> searchUsersByName(String searchText, Integer companyId, Integer departmentId, Integer status, Integer page, Integer size);
-    byte[] exportUsers();
-
-    Map<String, Object> getUsers(String searchText, Integer departmentId, Boolean status, Integer page, Integer size);
+    byte[] exportUsers(String searchText,Integer companyId, Integer departmentId, Integer status);
 
     void deleteUsers(List<Integer> ids) throws UserNotFoundException;
 
