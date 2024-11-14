@@ -15,8 +15,7 @@ import io.micrometer.common.lang.Nullable;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.validation.BindingResult;
@@ -270,4 +269,31 @@ public class UserController {
         }
     }
 
+    @GetMapping(value = "api/users/export", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+    public ResponseEntity<byte[]> exportUsers(
+            @RequestParam(required = false) String searchText,
+            @RequestParam(required = false) Integer companyId,
+            @RequestParam(required = false) Integer departmentId,
+            @RequestParam(required = false) Integer status
+    ) {
+        try {
+            byte[] excelBytes = userService.exportUsers(searchText, companyId, departmentId, status);
+
+            if (excelBytes == null || excelBytes.length == 0) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType("application/vnd.ms-excel"));
+            headers.setContentDisposition(ContentDisposition.attachment()
+                    .filename("users.xlsx").build());
+
+            return new ResponseEntity<>(excelBytes, headers, HttpStatus.OK);
+        } catch (ValidationException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage().getBytes());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(("Error during exporting file: " + e.getMessage()).getBytes());
+        }
+    }
 }
