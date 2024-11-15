@@ -77,10 +77,6 @@ public class RoomServiceImpl implements RoomService {
                             ));
                             break;
                         case "location":
-//                                predicates.add(cb.equal(
-//                                        cb.lower(root.get("location")),
-//                                        value.toLowerCase()
-//                                ));
                             predicates.add(cb.like(
                                     cb.lower(root.get("location")), "%" + value.toLowerCase() + "%"
                             ));

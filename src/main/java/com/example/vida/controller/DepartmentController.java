@@ -54,18 +54,20 @@ public class DepartmentController {
         }
         return null;
     }
+
     @GetMapping()
     public ResponseEntity<Object> searchDepartments(@RequestParam String searchText,
-                                                         @RequestParam @Nullable Integer companyId,
-                                                         @RequestParam(defaultValue = "1") Integer page,
-                                                         @RequestParam(defaultValue = "10") Integer size) {
+                                                    @RequestParam @Nullable Integer companyId,
+                                                    @RequestParam(defaultValue = "1") Integer page,
+                                                    @RequestParam(defaultValue = "10") Integer size) {
         try {
-            Map<String, Object> mapDepartment = departmentService.searchDepartmentsByName(searchText, companyId, page, size);
+            Map<String, Object> mapDepartment = departmentService.searchDepartments(searchText, companyId, page, size);
             return APIResponse.responseBuilder(mapDepartment, null, HttpStatus.OK);
         } catch (Exception e) {
             return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
     @GetMapping("/{id}")
     public ResponseEntity<Object> getDepartmentDetail(@PathVariable Integer id) {
         try {

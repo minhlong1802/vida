@@ -9,7 +9,7 @@ import java.util.Map;
 
 public interface DepartmentService {
 
-    Map<String, Object> searchDepartmentsByName(String searchText, Integer companyId, int page, int size);
+    Map<String, Object> searchDepartments(String searchText, Integer companyId, int page, int size);
 
     Department postDepartment(CreateDepartmentDto createDepartmentDto);
 

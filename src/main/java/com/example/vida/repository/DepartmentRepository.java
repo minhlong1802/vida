@@ -20,5 +20,4 @@ public interface DepartmentRepository extends CrudRepository<Department, Long>, 
 
     @Query(nativeQuery = true, value= "SELECT d FROM Department d WHERE LOWER(d.name) LIKE LOWER(CONCAT('%', :searchText, '%'))" )
     List<Department> searchDepartmentsByName(@Param("searchText") String searchText);
-
 }

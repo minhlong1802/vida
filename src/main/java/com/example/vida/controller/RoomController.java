@@ -41,7 +41,7 @@ public class RoomController {
             if (!errors.isEmpty()) {
                 return APIResponse.responseBuilder(
                         errors,
-                        "Validation failed",
+                        "Du lieu gui len khong dung dinh dang",
                         HttpStatus.BAD_REQUEST
                 );
             }
@@ -113,7 +113,7 @@ public class RoomController {
     @DeleteMapping()
     public ResponseEntity<Object> deleteRoomsByIds(@RequestBody List<Integer> ids) {
         if (ids == null || ids.isEmpty()) {
-            return APIResponse.responseBuilder(null, "Invalid input format. Please check the request body", HttpStatus.BAD_REQUEST);
+            return APIResponse.responseBuilder(null, "Dữ liệu gửi lên không đúng định dạng", HttpStatus.BAD_REQUEST);
         }
 
         try {
