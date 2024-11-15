@@ -2,10 +2,13 @@ package com.example.vida.service.impl;
 
 import com.example.vida.dto.request.CreateUserDto;
 import com.example.vida.dto.request.UpdateUserDto;
+import com.example.vida.entity.Company;
 import com.example.vida.entity.Department;
 import com.example.vida.entity.User;
 import com.example.vida.exception.UserNotFoundException;
 import com.example.vida.exception.UserValidationException;
+import com.example.vida.exception.ValidationException;
+import com.example.vida.repository.CompanyRepository;
 import com.example.vida.repository.DepartmentRepository;
 import com.example.vida.repository.UserRepository;
 import com.example.vida.service.UserService;
@@ -14,9 +17,7 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,8 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -38,11 +41,13 @@ import java.util.*;
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final DepartmentRepository departmentRepository;
+    private final CompanyRepository companyRepository;
 
     @Autowired
-    public UserServiceImpl(UserRepository userRepository, DepartmentRepository departmentRepository) {
+    public UserServiceImpl(UserRepository userRepository, DepartmentRepository departmentRepository,CompanyRepository companyRepository) {
         this.userRepository = userRepository;
         this.departmentRepository = departmentRepository;
+        this.companyRepository=companyRepository;
     }
 
     @Override
@@ -236,54 +241,126 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-
-    @Override
-    public byte[] exportUsers() {
-        List<User> users = userRepository.findAll();
-        if (users.isEmpty()) {
-            throw new UserNotFoundException("No users found to export");
-        }
-
-        Workbook workbook = new XSSFWorkbook();
-        Sheet sheet = workbook.createSheet("Users");
-
-        // Create header row
-        Row headerRow = sheet.createRow(0);
-        String[] headers = {"ID", "Username", "Email", "Department ID", "Status", "DOB", "Phone Number", "Gender", "Employee ID", "Card ID"};
-        for (int i = 0; i < headers.length; i++) {
-            headerRow.createCell(i).setCellValue(headers[i]);
-        }
-
-        // Create data rows
-        int rowNum = 1;
-        for (User user : users) {
-            Row row = sheet.createRow(rowNum++);
-            row.createCell(0).setCellValue(user.getId());
-            row.createCell(1).setCellValue(user.getUsername());
-            row.createCell(2).setCellValue(user.getEmail());
-//            row.createCell(3).setCellValue(user.getDepartmentId());
-            row.createCell(4).setCellValue(user.getStatus());
-            row.createCell(5).setCellValue(user.getDob().toString());
-            row.createCell(6).setCellValue(user.getPhoneNumber());
-            row.createCell(7).setCellValue(user.getGender());
-            row.createCell(8).setCellValue(user.getEmployeeId());
-            row.createCell(9).setCellValue(user.getCardId());
-        }
-
-        // Write workbook to ByteArrayOutputStream
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    public byte[] exportUsers(String searchText, Integer companyId, Integer departmentId, Integer status) {
         try {
-            workbook.write(outputStream);
-        } catch (IOException e) {
-            throw new RuntimeException("Error writing workbook to output stream", e);
-        }
+            List<User> users = searchUsersForExport(searchText, companyId, departmentId, status);
+            if (departmentId != null) {
+                departmentRepository.findById(Long.valueOf(departmentId))
+                        .orElseThrow(() -> new ValidationException("department not found"));
+            }
 
-        return outputStream.toByteArray();
+            if (companyId != null) {
+                companyRepository.findById(Long.valueOf(companyId))
+                        .orElseThrow(() -> new ValidationException("company not found"));
+            }
+            // Generate Excel file from search results
+            return generateExcelFile(users);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return new byte[0];
+        }
     }
 
-    @Override
-    public Map<String, Object> getUsers(String searchText, Integer departmentId, Boolean status, Integer page, Integer size) {
-        return new HashMap<>();
+    private List<User> searchUsersForExport(String searchText, Integer companyId, Integer departmentId, Integer status) {
+        return userRepository.searchUsersForExport(searchText, companyId, departmentId, status);
+    }
+
+    private byte[] generateExcelFile(List<User> users) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+
+            // Create Excel data
+            List<List<String>> excelData = new ArrayList<>();
+
+            // Add header row
+            excelData.add(Arrays.asList(
+                    "Username", "Email", "Department Name", "Company Name",
+                    "Status", "DOB", "Phone Number", "Gender",
+                    "Employee ID", "Card ID"
+            ));
+
+            // Add data rows
+            DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            for (User user : users) {
+                Department department = user.getDepartment();
+                Company company = department != null ? department.getCompany() : null;
+                String dob = user.getDob() != null ? user.getDob().format(dateFormat) : "";
+
+                excelData.add(Arrays.asList(
+                        user.getUsername(),
+                        user.getEmail(),
+                        department != null ? department.getName() : "",
+                        company != null ? company.getName() : "",
+                        formatStatus(user.getStatus()),
+                        dob,
+                        user.getPhoneNumber() != null ? user.getPhoneNumber() : "",
+                        user.getGender() != null ? user.getGender() : "",
+                        user.getEmployeeId() != null ? user.getEmployeeId() : "",
+                        user.getCardId() != null ? user.getCardId() : ""
+                ));
+            }
+
+            // Write to Excel
+            Sheet sheet = workbook.createSheet("Users");
+
+            // Apply header styling
+            CellStyle headerStyle = workbook.createCellStyle();
+            Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerFont.setColor(IndexedColors.YELLOW.getIndex());
+            headerStyle.setFont(headerFont);
+            headerStyle.setFillForegroundColor(IndexedColors.BLACK.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            headerStyle.setBorderBottom(BorderStyle.THIN);
+            headerStyle.setBorderTop(BorderStyle.THIN);
+            headerStyle.setBorderLeft(BorderStyle.THIN);
+            headerStyle.setBorderRight(BorderStyle.THIN);
+
+            // Apply data cell styling
+            CellStyle dataCellStyle = workbook.createCellStyle();
+            dataCellStyle.setBorderBottom(BorderStyle.THIN);
+            dataCellStyle.setBorderTop(BorderStyle.THIN);
+            dataCellStyle.setBorderLeft(BorderStyle.THIN);
+            dataCellStyle.setBorderRight(BorderStyle.THIN);
+
+            // Write headers with style
+            Row headerRow = sheet.createRow(0);
+            List<String> headers = excelData.get(0);
+            for (int i = 0; i < headers.size(); i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers.get(i));
+                cell.setCellStyle(headerStyle);
+            }
+
+            // Write data rows
+            for (int i = 1; i < excelData.size(); i++) {
+                Row row = sheet.createRow(i);
+                List<String> rowData = excelData.get(i);
+                for (int j = 0; j < rowData.size(); j++) {
+                    Cell cell = row.createCell(j);
+                    cell.setCellValue(rowData.get(j));
+                    cell.setCellStyle(dataCellStyle);
+                }
+            }
+
+            // Auto-size columns for better readability
+            for (int i = 0; i < headers.size(); i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            workbook.write(bos);
+            return bos.toByteArray();
+        }
+    }
+
+    private String formatStatus(Integer status) {
+        if (status == null) return "";
+        // Adjust this based on your status codes
+        return switch (status) {
+            case 1 -> "Active";
+            case 0 -> "Inactive";
+            default -> String.valueOf(status);
+        };
     }
 
 
@@ -293,7 +370,6 @@ public class UserServiceImpl implements UserService {
         if (createUserDto.getDepartmentId() != null) {
 
             //tim trong db ban ghi department vs id la request.getDepartmentId()
-            //....
             Optional<Department> department = departmentRepository.findById(createUserDto.getDepartmentId());
             user.setDepartment(department.get());
         }
