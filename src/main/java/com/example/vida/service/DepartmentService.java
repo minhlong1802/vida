@@ -9,6 +9,9 @@ import java.util.Map;
 
 public interface DepartmentService {
 
+    //Get All Department by CompanyId:
+    List<Integer> getDepartmentsByCompanyId(Integer companyId);
+
     Map<String, Object> searchDepartments(String searchText, Integer companyId, int page, int size);
 
     Department postDepartment(CreateDepartmentDto createDepartmentDto);
@@ -18,4 +21,5 @@ public interface DepartmentService {
     Department getDepartmentDetail(Integer id);
 
     void deleteDepartmentsByIds(List<Long> ids);
+
 }

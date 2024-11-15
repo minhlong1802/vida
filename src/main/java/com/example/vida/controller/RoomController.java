@@ -59,10 +59,10 @@ public class RoomController {
     @GetMapping
     public ResponseEntity<Object> filterRooms(@RequestParam Map<String, String> params) {
         try {
-            Integer page = Integer.valueOf(params.getOrDefault("page", "1"));
-            Integer size = Integer.valueOf(params.getOrDefault("size", "10"));
-            params.remove("page");
-            params.remove("size");
+            Integer page = Integer.valueOf(params.getOrDefault("pageNo", "1"));
+            Integer size = Integer.valueOf(params.getOrDefault("pageSize","10"));
+            params.remove("pageNo");
+            params.remove("pageSize");
 
             RoomFilterRequest request = new RoomFilterRequest();
             request.setFilters(params);

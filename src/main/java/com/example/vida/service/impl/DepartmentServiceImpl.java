@@ -20,10 +20,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.rest.webmvc.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +32,18 @@ public class DepartmentServiceImpl implements DepartmentService {
     private final DepartmentRepository departmentRepository;
     @Autowired
     private CompanyRepository companyRepository;
+
+    //Get All Department by CompanyId:
+    @Override
+    public List<Integer> getDepartmentsByCompanyId(Integer companyId) {
+        Company company = companyRepository.findById(Long.valueOf(companyId))
+                .orElseThrow(() -> new EntityNotFoundException("Không tồn tại company với id = " + companyId));
+
+        return departmentRepository.findByCompany(company)
+                .stream()
+                .map(Department::getId) // Chỉ lấy id của từng Department
+                .collect(Collectors.toList());
+    }
 
     //Get All Department
     @Override
@@ -67,6 +79,8 @@ public class DepartmentServiceImpl implements DepartmentService {
             return null;
         }
     }
+
+
 
     //Create Department
     @Override

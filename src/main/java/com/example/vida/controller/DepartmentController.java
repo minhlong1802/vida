@@ -58,11 +58,23 @@ public class DepartmentController {
     @GetMapping()
     public ResponseEntity<Object> searchDepartments(@RequestParam String searchText,
                                                     @RequestParam @Nullable Integer companyId,
-                                                    @RequestParam(defaultValue = "1") Integer page,
-                                                    @RequestParam(defaultValue = "10") Integer size) {
+                                                    @RequestParam(defaultValue = "1") Integer pageNo,
+                                                    @RequestParam(defaultValue = "10") Integer pageSize) {
         try {
-            Map<String, Object> mapDepartment = departmentService.searchDepartments(searchText, companyId, page, size);
+            Map<String, Object> mapDepartment = departmentService.searchDepartments(searchText, companyId, pageNo, pageSize);
             return APIResponse.responseBuilder(mapDepartment, null, HttpStatus.OK);
+        } catch (Exception e) {
+            return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @GetMapping("/by-company")
+    public ResponseEntity<Object> getDepartmentsByCompanyId(@RequestParam Integer companyId) {
+        try {
+            List<Integer> departmentIds = departmentService.getDepartmentsByCompanyId(companyId);
+            return APIResponse.responseBuilder(departmentIds, null, HttpStatus.OK);
+        } catch (EntityNotFoundException e) {
+            return APIResponse.responseBuilder(Collections.emptyList(), e.getMessage(), HttpStatus.NOT_FOUND);
         } catch (Exception e) {
             return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
