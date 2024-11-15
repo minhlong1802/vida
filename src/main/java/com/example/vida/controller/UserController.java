@@ -11,6 +11,7 @@ import com.example.vida.exception.UserNotFoundException;
 import com.example.vida.exception.ValidationException;
 import com.example.vida.service.UserService;
 import com.example.vida.service.impl.UserDetailServiceImpl;
+import com.example.vida.service.impl.UserServiceImpl;
 import com.example.vida.utils.JwtTokenUtils;
 import io.micrometer.common.lang.Nullable;
 import jakarta.validation.Valid;
@@ -36,11 +37,13 @@ public class UserController {
     private final UserService userService;
     private final JwtTokenUtils jwtTokenUtil;
     private final UserDetailServiceImpl userDetailServiceImpl;
+    private final UserServiceImpl userServiceImpl;
 
-    public UserController(UserService userService, JwtTokenUtils jwtTokenUtil, UserDetailServiceImpl userDetailServiceImpl) {
+    public UserController(UserService userService, JwtTokenUtils jwtTokenUtil, UserDetailServiceImpl userDetailServiceImpl, UserServiceImpl userServiceImpl) {
         this.userService = userService;
         this.jwtTokenUtil = jwtTokenUtil;
         this.userDetailServiceImpl = userDetailServiceImpl;
+        this.userServiceImpl = userServiceImpl;
     }
 
 
@@ -274,12 +277,15 @@ public class UserController {
 
     @PostMapping("api/users/import")
     public ResponseEntity<?> importUsersData(@RequestParam("file") MultipartFile file) {
-        if (userService.isValidExcelFile(file)) {
-            this.userService.saveUsersToDatabase(file);
-            return APIResponse.responseBuilder(null, "Users imported successfully", HttpStatus.OK);
+
+        try {
+            if (userService.isValidExcelFile(file)) {
+                this.userService.saveUsersToDatabase(file);
+                return APIResponse.responseBuilder(null, "Users imported successfully", HttpStatus.OK);
+            }
+        } catch (ImportUserValidationException ex) {
+            return APIResponse.responseBuilder(null,ex.getMessage(), HttpStatus.BAD_REQUEST);
         }
-        else {
-            return APIResponse.responseBuilder(null,"Please choose a valid excel file",HttpStatus.BAD_REQUEST);
-        }
+        return null;
     }
 }

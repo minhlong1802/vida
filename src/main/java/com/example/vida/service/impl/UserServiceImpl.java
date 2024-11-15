@@ -17,6 +17,7 @@ import jakarta.persistence.criteria.Root;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFCell;
+import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.BeanUtils;
@@ -36,6 +37,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -64,6 +66,7 @@ public class UserServiceImpl implements UserService {
 
         User user = new User();
         BeanUtils.copyProperties(createUserDto, user);
+        user.setStatus(1);
         user.setPassword(generatePassword(createUserDto));
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
@@ -201,6 +204,8 @@ public class UserServiceImpl implements UserService {
 
     public List<User> getUsersDataFromExcel(InputStream inputStream) {
         List<User> users = new ArrayList<>();
+        User user = new User();
+        CreateUserDto createUserDto = new CreateUserDto();
         try {
             XSSFWorkbook workbook = new XSSFWorkbook(inputStream);
             XSSFSheet sheet = workbook.getSheet("user");
@@ -212,8 +217,7 @@ public class UserServiceImpl implements UserService {
                 }
                 Iterator<Cell> cellIterator = row.iterator();
                 int cellIndex = 0;
-                User user = new User();
-                CreateUserDto createUserDto = new CreateUserDto(); // Create a new CreateUserDto object
+                // Create a new CreateUserDto object
                 while (cellIterator.hasNext()) {
 
                     Cell cell = cellIterator.next();
@@ -268,14 +272,13 @@ public class UserServiceImpl implements UserService {
                     cellIndex++;
                 }
                 Map<String, String> validationErrors = validateUserData(createUserDto);
-                if (!CollectionUtils.isEmpty(validationErrors)) {
+                for (rowIndex=1;rowIndex<= sheet.getLastRowNum();rowIndex++) {
                     StringBuilder sb = new StringBuilder();
-                    for (rowIndex = 1; rowIndex < validationErrors.size(); rowIndex++) {
-                        sb.append("Validation errors in row " + rowIndex + ": " + validationErrors + ".").append("\n");
+                    if (!validationErrors.isEmpty()) {
+                        sb.append("Validation errors in row " + rowIndex + ": " + validationErrors + ".").append("/n");
+                        validationErrors.put("row", sb.toString());
                     }
-                    throw new ImportUserValidationException(sb.toString());
                 }
-                // validate row
                 user.setPassword(generatePassword(createUserDto));
                 user.setStatus(1);
                 user.setCreatedAt(LocalDateTime.now());
@@ -285,6 +288,7 @@ public class UserServiceImpl implements UserService {
                 user.setCreatorName(UserContext.getUser().getUsername());
                 user.setUpdatorName(UserContext.getUser().getUsername());
                 users.add(user);
+
             }
         } catch (IOException e) {
             e.printStackTrace();
