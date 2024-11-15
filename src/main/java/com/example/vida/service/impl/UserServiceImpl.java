@@ -1,9 +1,9 @@
 package com.example.vida.service.impl;
 
 import com.example.vida.dto.request.CreateUserDto;
-import com.example.vida.dto.request.UpdateUserDto;
 import com.example.vida.entity.Department;
 import com.example.vida.entity.User;
+import com.example.vida.exception.ImportUserValidationException;
 import com.example.vida.exception.UserNotFoundException;
 import com.example.vida.exception.UserValidationException;
 import com.example.vida.repository.DepartmentRepository;
@@ -14,9 +14,10 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
+import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFCell;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,9 +27,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -178,22 +182,114 @@ public class UserServiceImpl implements UserService {
         return errors;
     }
 
+    public boolean isValidExcelFile(MultipartFile file) {
+        return Objects.equals(file.getContentType(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" );
+    }
+
     @Override
-    public Map<String, String> validateUpdateUserData(UpdateUserDto updateUserDto) {
-        Map<String, String> errors = new HashMap<>();
-
-        if (!isValidPhoneNumber(updateUserDto.getPhoneNumber())) {
-            errors.put("phoneNumber", "Invalid phone number format");
+    public void saveUsersToDatabase(MultipartFile file) {
+        if(isValidExcelFile(file)){
+            try {
+                List<User> users = getUsersDataFromExcel(file.getInputStream());
+                this.userRepository.saveAll(users);
+            } catch (IOException e) {
+                throw new IllegalArgumentException("The file is not a valid excel file");
+            }
         }
+    }
 
-        if (userRepository.existsByUsername(updateUserDto.getUsername())) {
-            errors.put("username", "Username already exists");
-        }
 
-        if (userRepository.existsByEmail(updateUserDto.getEmail())) {
-            errors.put("email", "Email already exists");
+    public List<User> getUsersDataFromExcel(InputStream inputStream) {
+        List<User> users = new ArrayList<>();
+        try {
+            XSSFWorkbook workbook = new XSSFWorkbook(inputStream);
+            XSSFSheet sheet = workbook.getSheet("user");
+            int rowIndex = 0;
+            for (Row row : sheet) {
+                if (rowIndex == 0) {
+                    rowIndex++;
+                    continue;
+                }
+                Iterator<Cell> cellIterator = row.iterator();
+                int cellIndex = 0;
+                User user = new User();
+                CreateUserDto createUserDto = new CreateUserDto(); // Create a new CreateUserDto object
+                while (cellIterator.hasNext()) {
+
+                    Cell cell = cellIterator.next();
+                    switch (cellIndex) {
+                        case 0 -> {
+                            String userName = cell.getStringCellValue();
+                            user.setUsername(userName);
+                            createUserDto.setUsername(userName); // Set username in DTO
+                        }
+                        case 1 -> {
+                            String email = cell.getStringCellValue();
+                            user.setEmail(email);
+                            createUserDto.setEmail(email); // Set email in DTO
+                        }
+                        case 2 -> {
+                            String departmentName = cell.getStringCellValue();
+                            List<Department> departments = departmentRepository.findByName(departmentName);
+                            Department department = null;
+                            if (!CollectionUtils.isEmpty(departments)) {
+                                department = departments.get(0);
+                            }
+                            user.setDepartment(department);
+                        }
+                        case 3 -> {
+                            LocalDate dob = cell.getLocalDateTimeCellValue().toLocalDate();
+                            user.setDob(dob);
+                            createUserDto.setDob(dob); // Set DOB in DTO
+                        }
+                        case 4 -> {
+                            String phoneNumber = ((XSSFCell) cell).getRawValue();
+                            user.setPhoneNumber(phoneNumber);
+                            createUserDto.setPhoneNumber(phoneNumber); // Set phone number in DTO
+                        }
+                        case 5 -> {
+                            String gender = cell.getStringCellValue();
+                            user.setGender(gender);
+                            createUserDto.setGender(gender); // Set gender in DTO
+                        }
+                        case 6 -> {
+                            String employeeId = cell.getStringCellValue();
+                            user.setEmployeeId(employeeId);
+                            createUserDto.setEmployeeId(employeeId); // Set employee ID in DTO
+                        }
+                        case 7 -> {
+                            String cardId = cell.getStringCellValue();
+                            user.setCardId(cardId);
+                            createUserDto.setCardId(cardId); // Set card ID in DTO
+                        }
+                        default -> {
+                        }
+                    }
+                    cellIndex++;
+                }
+                Map<String, String> validationErrors = validateUserData(createUserDto);
+                if (!CollectionUtils.isEmpty(validationErrors)) {
+                    StringBuilder sb = new StringBuilder();
+                    for (rowIndex = 1; rowIndex < validationErrors.size(); rowIndex++) {
+                        sb.append("Validation errors in row " + rowIndex + ": " + validationErrors + ".").append("\n");
+                    }
+                    throw new ImportUserValidationException(sb.toString());
+                }
+                // validate row
+                user.setPassword(generatePassword(createUserDto));
+                user.setStatus(1);
+                user.setCreatedAt(LocalDateTime.now());
+                user.setUpdatedAt(LocalDateTime.now());
+                user.setCreatorId(UserContext.getUser().getUserId());
+                user.setUpdatorId(UserContext.getUser().getUserId());
+                user.setCreatorName(UserContext.getUser().getUsername());
+                user.setUpdatorName(UserContext.getUser().getUsername());
+                users.add(user);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        return errors;
+        return users;
     }
 
     @Override
@@ -234,56 +330,6 @@ public class UserServiceImpl implements UserService {
             e.printStackTrace();
             return null;
         }
-    }
-
-
-    @Override
-    public byte[] exportUsers() {
-        List<User> users = userRepository.findAll();
-        if (users.isEmpty()) {
-            throw new UserNotFoundException("No users found to export");
-        }
-
-        Workbook workbook = new XSSFWorkbook();
-        Sheet sheet = workbook.createSheet("Users");
-
-        // Create header row
-        Row headerRow = sheet.createRow(0);
-        String[] headers = {"ID", "Username", "Email", "Department ID", "Status", "DOB", "Phone Number", "Gender", "Employee ID", "Card ID"};
-        for (int i = 0; i < headers.length; i++) {
-            headerRow.createCell(i).setCellValue(headers[i]);
-        }
-
-        // Create data rows
-        int rowNum = 1;
-        for (User user : users) {
-            Row row = sheet.createRow(rowNum++);
-            row.createCell(0).setCellValue(user.getId());
-            row.createCell(1).setCellValue(user.getUsername());
-            row.createCell(2).setCellValue(user.getEmail());
-//            row.createCell(3).setCellValue(user.getDepartmentId());
-            row.createCell(4).setCellValue(user.getStatus());
-            row.createCell(5).setCellValue(user.getDob().toString());
-            row.createCell(6).setCellValue(user.getPhoneNumber());
-            row.createCell(7).setCellValue(user.getGender());
-            row.createCell(8).setCellValue(user.getEmployeeId());
-            row.createCell(9).setCellValue(user.getCardId());
-        }
-
-        // Write workbook to ByteArrayOutputStream
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        try {
-            workbook.write(outputStream);
-        } catch (IOException e) {
-            throw new RuntimeException("Error writing workbook to output stream", e);
-        }
-
-        return outputStream.toByteArray();
-    }
-
-    @Override
-    public Map<String, Object> getUsers(String searchText, Integer departmentId, Boolean status, Integer page, Integer size) {
-        return new HashMap<>();
     }
 
 

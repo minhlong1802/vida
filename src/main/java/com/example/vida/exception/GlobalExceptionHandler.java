@@ -46,4 +46,12 @@ public class GlobalExceptionHandler {
                 HttpStatus.NOT_FOUND
         );
     }
+    @ExceptionHandler(ImportUserValidationException.class)
+    public ResponseEntity<Object> handleImportValidationExceptions(ImportUserValidationException ex) {
+        return APIResponse.responseBuilder(
+                null,
+                ex.getMessage(),
+                HttpStatus.BAD_REQUEST
+        );
+    }
 }

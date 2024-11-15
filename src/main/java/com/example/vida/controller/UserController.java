@@ -6,6 +6,7 @@ import com.example.vida.dto.request.LoginRequest;
 import com.example.vida.dto.request.RequestAppointmentDto;
 import com.example.vida.dto.response.APIResponse;
 import com.example.vida.entity.User;
+import com.example.vida.exception.ImportUserValidationException;
 import com.example.vida.exception.UserNotFoundException;
 import com.example.vida.exception.ValidationException;
 import com.example.vida.service.UserService;
@@ -21,6 +22,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
 import java.util.List;
@@ -244,11 +246,11 @@ public class UserController {
     }
     @GetMapping("api/users")
     public ResponseEntity<Object> getUsers(@RequestParam @Nullable String searchText,
-                                                    @RequestParam @Nullable Integer companyId,
-                                                    @RequestParam @Nullable Integer departmentId,
-                                                    @RequestParam @Nullable Integer status,
-                                                    @RequestParam(defaultValue = "1") Integer page,
-                                                    @RequestParam(defaultValue = "10") Integer size) {
+                                           @RequestParam @Nullable Integer companyId,
+                                           @RequestParam @Nullable Integer departmentId,
+                                           @RequestParam @Nullable Integer status,
+                                           @RequestParam(defaultValue = "1") Integer page,
+                                           @RequestParam(defaultValue = "10") Integer size) {
         try {
             Map<String, Object> mapUser = userService.searchUsersByName(searchText,companyId,departmentId,status,page,size);
             return APIResponse.responseBuilder(mapUser, null, HttpStatus.OK);
@@ -270,4 +272,14 @@ public class UserController {
         }
     }
 
+    @PostMapping("api/users/import")
+    public ResponseEntity<?> importUsersData(@RequestParam("file") MultipartFile file) {
+        if (userService.isValidExcelFile(file)) {
+            this.userService.saveUsersToDatabase(file);
+            return APIResponse.responseBuilder(null, "Users imported successfully", HttpStatus.OK);
+        }
+        else {
+            return APIResponse.responseBuilder(null,"Please choose a valid excel file",HttpStatus.BAD_REQUEST);
+        }
+    }
 }
