@@ -70,53 +70,42 @@ public class RoomServiceImpl implements RoomService {
             filters.forEach((key, value) -> {
                 if (value != null && !value.trim().isEmpty()) {
                     switch (key.toLowerCase()) {
-                        case "name":
-                            predicates.add(cb.like(
-                                    cb.lower(root.get("name")),
-                                    "%" + value.toLowerCase() + "%"
-                            ));
+                        case "searchtext": // Tìm kiếm trong name và location
+                            String searchText = "%" + value.toLowerCase() + "%";
+                            Predicate namePredicate = cb.like(cb.lower(root.get("name")), searchText);
+                            Predicate locationPredicate = cb.like(cb.lower(root.get("location")), searchText);
+                            predicates.add(cb.or(namePredicate, locationPredicate));
                             break;
-                        case "location":
-//                                predicates.add(cb.equal(
-//                                        cb.lower(root.get("location")),
-//                                        value.toLowerCase()
-//                                ));
-                            predicates.add(cb.like(
-                                    cb.lower(root.get("location")), "%" + value.toLowerCase() + "%"
-                            ));
-                            break;
-                        case "capacity":
+
+                        case "capacity": // Tìm phòng theo dung lượng chính xác
                             try {
                                 Integer capacityValue = Integer.parseInt(value);
-                                predicates.add(cb.equal(
-                                        root.get("capacity"),
-                                        capacityValue
-                                ));
+                                predicates.add(cb.equal(root.get("capacity"), capacityValue));
                             } catch (NumberFormatException e) {
                                 log.warn("Invalid capacity value: {}", value);
                             }
                             break;
-                        case "mincapacity":
+
+                        case "mincapacity": // Tìm phòng có dung lượng tối thiểu
                             try {
                                 Integer minCapacity = Integer.parseInt(value);
-                                predicates.add(cb.greaterThanOrEqualTo(
-                                        root.get("capacity"),
-                                        minCapacity
-                                ));
+                                predicates.add(cb.greaterThanOrEqualTo(root.get("capacity"), minCapacity));
                             } catch (NumberFormatException e) {
                                 log.warn("Invalid min capacity value: {}", value);
                             }
                             break;
-                        case "maxcapacity":
+
+                        case "maxcapacity": // Tìm phòng có dung lượng tối đa
                             try {
                                 Integer maxCapacity = Integer.parseInt(value);
-                                predicates.add(cb.lessThanOrEqualTo(
-                                        root.get("capacity"),
-                                        maxCapacity
-                                ));
+                                predicates.add(cb.lessThanOrEqualTo(root.get("capacity"), maxCapacity));
                             } catch (NumberFormatException e) {
                                 log.warn("Invalid max capacity value: {}", value);
                             }
+                            break;
+
+                        default: // Các bộ lọc khác (nếu có)
+                            predicates.add(cb.equal(cb.lower(root.get(key)), value.toLowerCase()));
                             break;
                     }
                 }

@@ -1,11 +1,9 @@
 package com.example.vida.service.impl;
 
 import com.example.vida.dto.request.CreateDepartmentDto;
-import com.example.vida.dto.request.CreateRoomDto;
 import com.example.vida.dto.response.UserDto;
 import com.example.vida.entity.Company;
 import com.example.vida.entity.Department;
-import com.example.vida.entity.Room;
 import com.example.vida.repository.CompanyRepository;
 import com.example.vida.repository.DepartmentRepository;
 import com.example.vida.service.DepartmentService;
@@ -15,10 +13,8 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
-import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -27,6 +23,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -36,9 +33,21 @@ public class DepartmentServiceImpl implements DepartmentService {
     @Autowired
     private CompanyRepository companyRepository;
 
-
+    //Get All Department by CompanyId:
     @Override
-    public Map<String, Object> searchDepartmentsByName(String searchText, Integer companyId, int page, int size) {
+    public List<Integer> getDepartmentsByCompanyId(Integer companyId) {
+        Company company = companyRepository.findById(Long.valueOf(companyId))
+                .orElseThrow(() -> new EntityNotFoundException("Không tồn tại company với id = " + companyId));
+
+        return departmentRepository.findByCompany(company)
+                .stream()
+                .map(Department::getId) // Chỉ lấy id của từng Department
+                .collect(Collectors.toList());
+    }
+
+    //Get All Department
+    @Override
+    public Map<String, Object> searchDepartments(String searchText, Integer companyId, int page, int size) {
         try {
             if (page > 0) {
                 page = page - 1;
@@ -48,11 +57,13 @@ public class DepartmentServiceImpl implements DepartmentService {
                 @Override
                 public Predicate toPredicate(Root<Department> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) {
                     List<Predicate> predicates = new ArrayList<>();
+                    // Add search by name
                     predicates.add(criteriaBuilder.like(root.get("name"), "%" + searchText + "%"));
+                    // Filter by company ID
                     if (companyId != null) {
-                        predicates.add(criteriaBuilder.equal(root.get("companyId"), companyId));
+                        predicates.add(criteriaBuilder.equal(root.get("company").get("id"), companyId));
                     }
-                    return criteriaBuilder.and(predicates.toArray(new Predicate[predicates.size()]));
+                    return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
                 }
             };
 
@@ -68,6 +79,8 @@ public class DepartmentServiceImpl implements DepartmentService {
             return null;
         }
     }
+
+
 
     //Create Department
     @Override
