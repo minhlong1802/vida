@@ -99,8 +99,21 @@ public class DepartmentController {
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<Object> updateDepartment(@PathVariable Integer id, @RequestBody @Valid CreateDepartmentDto createDepartmentDto) {
+    public ResponseEntity<Object> updateDepartment(@PathVariable Integer id, @RequestBody @Valid CreateDepartmentDto createDepartmentDto, BindingResult bindingResult) {
         try {
+            Map<String, String> errors = new HashMap<>();
+            if (bindingResult.hasErrors()) {
+                bindingResult.getFieldErrors().forEach(error ->
+                        errors.put(error.getField(), error.getDefaultMessage())
+                );
+            }
+            if (!errors.isEmpty()) {
+                return APIResponse.responseBuilder(
+                        errors,
+                        "Validation failed",
+                        HttpStatus.BAD_REQUEST
+                );
+            }
             Department department = departmentService.updateDepartment(id, createDepartmentDto);
             if (department != null) {
                 return APIResponse.responseBuilder(department, "Department updated successfully", HttpStatus.OK);
