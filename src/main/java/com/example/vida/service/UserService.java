@@ -24,4 +24,5 @@ public interface UserService {
     Map<String, String> validateUserData(@Valid CreateUserDto createUserDto);
 
     Map<String, String> validateUpdateUserData(@Valid UpdateUserDto updateUserDto);
+
 }

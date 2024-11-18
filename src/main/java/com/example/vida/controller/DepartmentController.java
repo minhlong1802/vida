@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -53,18 +54,32 @@ public class DepartmentController {
         }
         return null;
     }
+
     @GetMapping()
     public ResponseEntity<Object> searchDepartments(@RequestParam String searchText,
-                                                         @RequestParam @Nullable Integer companyId,
-                                                         @RequestParam(defaultValue = "1") Integer page,
-                                                         @RequestParam(defaultValue = "10") Integer size) {
+                                                    @RequestParam @Nullable Integer companyId,
+                                                    @RequestParam(defaultValue = "1") Integer pageNo,
+                                                    @RequestParam(defaultValue = "10") Integer pageSize) {
         try {
-            Map<String, Object> mapDepartment = departmentService.searchDepartmentsByName(searchText, companyId, page, size);
+            Map<String, Object> mapDepartment = departmentService.searchDepartments(searchText, companyId, pageNo, pageSize);
             return APIResponse.responseBuilder(mapDepartment, null, HttpStatus.OK);
         } catch (Exception e) {
             return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+    @GetMapping("/by-company")
+    public ResponseEntity<Object> getDepartmentsByCompanyId(@RequestParam Integer companyId) {
+        try {
+            List<Integer> departmentIds = departmentService.getDepartmentsByCompanyId(companyId);
+            return APIResponse.responseBuilder(departmentIds, null, HttpStatus.OK);
+        } catch (EntityNotFoundException e) {
+            return APIResponse.responseBuilder(Collections.emptyList(), e.getMessage(), HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Object> getDepartmentDetail(@PathVariable Integer id) {
         try {
@@ -80,6 +95,36 @@ public class DepartmentController {
                     e.getMessage(),
                     HttpStatus.NOT_FOUND
             );
+        }
+    }
+
+    @PutMapping("{id}")
+    public ResponseEntity<Object> updateDepartment(@PathVariable Integer id, @RequestBody @Valid CreateDepartmentDto createDepartmentDto) {
+        try {
+            Department department = departmentService.updateDepartment(id, createDepartmentDto);
+            if (department != null) {
+                return APIResponse.responseBuilder(department, "Department updated successfully", HttpStatus.OK);
+            } else {
+                return APIResponse.responseBuilder(null, "ID not found", HttpStatus.NOT_FOUND);
+            }
+        } catch (UnauthorizedException e) {
+            log.error("Unauthorized access", e);
+            return APIResponse.responseBuilder(Collections.singletonList("Unauthorized access"), "You are not authorized to perform this action", HttpStatus.UNAUTHORIZED);
+        }
+    }
+
+    @DeleteMapping()
+    public ResponseEntity<Object> deleteDepartment(@RequestBody List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return APIResponse.responseBuilder(null, "Invalid input format. Please check the request body", HttpStatus.BAD_REQUEST);
+        }
+        try {
+            departmentService.deleteDepartmentsByIds(ids);
+            return APIResponse.responseBuilder(null, "Departments deleted successfully", HttpStatus.OK);
+        } catch (EntityNotFoundException e) {
+            return APIResponse.responseBuilder(null, "Some departments not found", HttpStatus.NOT_FOUND);
+        } catch (UnauthorizedException e) {
+            return APIResponse.responseBuilder(Collections.singletonList("Unauthorized access"), "You are not authorized to perform this action", HttpStatus.UNAUTHORIZED);
         }
     }
 
