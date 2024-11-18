@@ -3,27 +3,23 @@ package com.example.vida.controller;
 import com.example.vida.entity.Company;
 import com.example.vida.service.CompanyService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/company")
+@RequestMapping("api/companies")
 public class CompanyController {
-
-    private final CompanyService companyService;
-
     @Autowired
-    public CompanyController(CompanyService companyService) {
-        this.companyService = companyService;
-    }
+    private CompanyService companyService;
 
-    @GetMapping
-    public ResponseEntity<List<Company>> getAllCompanies() {
-        List<Company> companies = companyService.getAllCompanies();
-        return ResponseEntity.ok(companies);
+    @ResponseStatus(HttpStatus.OK)
+    @GetMapping()
+    public List<Company> getAllTodos() {
+        return companyService.getAllCompanies();
     }
 }
