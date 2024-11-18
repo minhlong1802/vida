@@ -16,6 +16,8 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
@@ -271,12 +273,16 @@ public class UserServiceImpl implements UserService {
                     }
                     cellIndex++;
                 }
-                Map<String, String> validationErrors = validateUserData(createUserDto);
-                for (rowIndex=1;rowIndex<= sheet.getLastRowNum();rowIndex++) {
-                    StringBuilder sb = new StringBuilder();
-                    if (!validationErrors.isEmpty()) {
-                        sb.append("Validation errors in row " + rowIndex + ": " + validationErrors + ".").append("/n");
-                        validationErrors.put("row", sb.toString());
+                Map<Integer, List<String>> validationErrors = new HashMap<>();
+                for (rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+                    row = sheet.getRow(rowIndex);
+                    if (row == null) {
+                        continue;
+                    }
+
+                    List<String> rowErrors = (List<String>) validateUserData(createUserDto);
+                    if (!rowErrors.isEmpty()) {
+                        validationErrors.put(rowIndex + 1, rowErrors); // +1 because Excel is 1-indexed
                     }
                 }
                 user.setPassword(generatePassword(createUserDto));
@@ -354,6 +360,5 @@ public class UserServiceImpl implements UserService {
         if (createUserDto.getEmployeeId() != null) user.setEmployeeId(createUserDto.getEmployeeId());
         if (createUserDto.getCardId() != null) user.setCardId(createUserDto.getCardId());
     }
-
 
 }

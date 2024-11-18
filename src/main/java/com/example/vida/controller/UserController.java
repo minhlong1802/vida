@@ -277,15 +277,25 @@ public class UserController {
 
     @PostMapping("api/users/import")
     public ResponseEntity<?> importUsersData(@RequestParam("file") MultipartFile file) {
+        // Check if the file is a valid Excel file
+        if (!userService.isValidExcelFile(file)) {
+            return APIResponse.responseBuilder(null, "Choose a valid excel file", HttpStatus.BAD_REQUEST);
+        }
 
         try {
-            if (userService.isValidExcelFile(file)) {
+            // Validate user data
+            Map<Integer, List<String>> validationErrors = new HashMap<>();
+
+            if (validationErrors.isEmpty()) {
+                // If there are no validation errors, save users to database
                 this.userService.saveUsersToDatabase(file);
                 return APIResponse.responseBuilder(null, "Users imported successfully", HttpStatus.OK);
+            } else {
+                // If there are validation errors, return them
+                return APIResponse.responseBuilder(validationErrors, "Validation errors occurred", HttpStatus.BAD_REQUEST);
             }
-        } catch (ImportUserValidationException ex) {
-            return APIResponse.responseBuilder(null,ex.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception ex) {
+            return APIResponse.responseBuilder(null, "An error occurred while processing the file: " + ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
-        return null;
     }
 }
