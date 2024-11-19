@@ -137,7 +137,7 @@ public class UserController {
 
         // 2. Thêm các lỗi từ business validation
         try {
-            Map<String, String> businessErrors = userService.validateUserData(createUserDto);
+            Map<String, String> businessErrors = userService.validateUserData(createUserDto,"create");
             errors.putAll(businessErrors);
         } catch (Exception e) {
             log.error("Error during business validation", e);
@@ -177,7 +177,7 @@ public class UserController {
 
         // 2. Thêm các lỗi từ business validation
         try {
-            Map<String, String> businessErrors = userService.validateUserData(createUserDto);
+            Map<String, String> businessErrors = userService.validateUserData(createUserDto,"update");
             errors.putAll(businessErrors);
         } catch (Exception e) {
             log.error("Error during business validation", e);

@@ -14,10 +14,7 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.Validation;
-import jakarta.validation.ValidationException;
-import jakarta.validation.Validator;
+import jakarta.validation.*;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -68,7 +65,6 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User createUser(CreateUserDto createUserDto) {
-        validateNewUser(createUserDto);
 
         User user = new User();
         BeanUtils.copyProperties(createUserDto, user);
@@ -96,20 +92,7 @@ public class UserServiceImpl implements UserService {
         return formattedDob;
     }
 
-    private void validateNewUser(CreateUserDto createUserDto) {
-//        if (!isValidEmail(createUserDto.getEmail())) {
-//            throw new UserValidationException("Invalid email format");
-//        }
-        if (userRepository.existsByUsername(createUserDto.getUsername())) {
-            throw new UserValidationException("Username already exists");
-        }
-        if (userRepository.existsByEmail(createUserDto.getEmail())) {
-            throw new UserValidationException("Email already exists");
-        }
-        if (!isValidPhoneNumber(createUserDto.getPhoneNumber())) {
-            throw new UserValidationException("Invalid phone number format");
-        }
-    }
+
 
 
 
@@ -174,19 +157,20 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Map<String, String> validateUserData(CreateUserDto createUserDto) {
+    public Map<String, String> validateUserData(@Valid CreateUserDto createUserDto, String mode) {
         Map<String, String> errors = new HashMap<>();
 
         if (!isValidPhoneNumber(createUserDto.getPhoneNumber())) {
             errors.put("phoneNumber", "Invalid phone number format");
         }
+        if (mode.equals("create")){
+            if (userRepository.existsByUsername(createUserDto.getUsername())) {
+                errors.put("username", "Username already exists");
+            }
 
-        if (userRepository.existsByUsername(createUserDto.getUsername())) {
-            errors.put("username", "Username already exists");
-        }
-
-        if (userRepository.existsByEmail(createUserDto.getEmail())) {
-            errors.put("email", "Email already exists");
+            if (userRepository.existsByEmail(createUserDto.getEmail())) {
+                errors.put("email", "Email already exists");
+            }
         }
         return errors;
     }
@@ -328,7 +312,7 @@ public class UserServiceImpl implements UserService {
                 }
 
                 // Additional custom validations
-                Map<String, String> customErrors = validateUserData(createUserDto);
+                Map<String, String> customErrors = validateUserData(createUserDto,"import");
                 if (!customErrors.isEmpty()) {
                     String existingError = validationErrors.get("Row " + (rowIndex + 1));
                     StringBuilder errorMessage = new StringBuilder(existingError != null ? existingError : "");
@@ -429,21 +413,61 @@ public class UserServiceImpl implements UserService {
 
 
     private void updateUserFromRequest(User user, CreateUserDto createUserDto) {
-        if (createUserDto.getUsername() != null) user.setUsername(createUserDto.getUsername());
-        if (createUserDto.getEmail() != null) user.setEmail(createUserDto.getEmail());
-        if (createUserDto.getDepartmentId() != null) {
+        // For username update
+        if (createUserDto.getUsername() != null) {
+            // Only validate and update if username is actually different
+            if (!createUserDto.getUsername().equals(user.getUsername())) {
+                // Check if new username exists for any other user
+                if (userRepository.existsByUsernameAndIdNot(createUserDto.getUsername(), user.getId())) {
+                    throw new IllegalArgumentException("Username already exists");
+                }
+                user.setUsername(createUserDto.getUsername());
+            }
+        }
 
-            //tim trong db ban ghi department vs id la request.getDepartmentId()
-            //....
+        // For email update
+        if (createUserDto.getEmail() != null) {
+            // Only validate and update if email is actually different
+            if (!createUserDto.getEmail().equals(user.getEmail())) {
+                // Check if new email exists for any other user
+                if (userRepository.existsByEmailAndIdNot(createUserDto.getEmail(), user.getId())) {
+                    throw new IllegalArgumentException("Email already exists");
+                }
+                user.setEmail(createUserDto.getEmail());
+            }
+        }
+
+        // Rest of the fields remain the same
+        if (createUserDto.getDepartmentId() != null) {
             Optional<Department> department = departmentRepository.findById(createUserDto.getDepartmentId());
             user.setDepartment(department.get());
         }
         if (createUserDto.getStatus() != null) user.setStatus(createUserDto.getStatus());
         if (createUserDto.getDob() != null) user.setDob(createUserDto.getDob());
-        if (createUserDto.getPhoneNumber() != null) user.setPhoneNumber(createUserDto.getPhoneNumber());
+        if (createUserDto.getPhoneNumber() != null) {
+            if (!createUserDto.getPhoneNumber().equals(user.getPhoneNumber())) {
+                if (userRepository.existsByPhoneNumberAndIdNot(createUserDto.getPhoneNumber(), user.getId())){
+                    throw new IllegalArgumentException(("Phone Number already exists"));
+                }
+            }
+            user.setPhoneNumber(createUserDto.getPhoneNumber());
+        }
         if (createUserDto.getGender() != null) user.setGender(createUserDto.getGender());
-        if (createUserDto.getEmployeeId() != null) user.setEmployeeId(createUserDto.getEmployeeId());
-        if (createUserDto.getCardId() != null) user.setCardId(createUserDto.getCardId());
+        if (createUserDto.getEmployeeId() != null) {
+            if (!createUserDto.getEmployeeId().equals(user.getEmployeeId())) {
+                if (userRepository.existsByEmployeeIdAndIdNot(createUserDto.getEmployeeId(), user.getId())){
+                    throw new IllegalArgumentException(("Employee Code already exists"));
+                }
+            }
+            user.setPhoneNumber(createUserDto.getEmployeeId());
+        }
+        if (createUserDto.getCardId() != null) {
+            if (!createUserDto.getCardId().equals(user.getCardId())) {
+                if (userRepository.existsByCardIdAndIdNot(createUserDto.getCardId(), user.getId())){
+                    throw new IllegalArgumentException(("Card already exists"));
+                }
+            }
+            user.setCardId(createUserDto.getCardId());
+        }
     }
-
 }

@@ -21,7 +21,7 @@ public interface UserService {
 
     void deleteUsers(List<Integer> ids) throws UserNotFoundException;
 
-    Map<String, String> validateUserData(@Valid CreateUserDto createUserDto);
+    Map<String, String> validateUserData(@Valid CreateUserDto createUserDto, String mode);
 
     Object saveUsersToDatabase(MultipartFile file);
     boolean isValidExcelFile(MultipartFile file);
