@@ -14,6 +14,10 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.ValidationException;
+import jakarta.validation.Validator;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -192,47 +196,83 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void saveUsersToDatabase(MultipartFile file) {
-        if(isValidExcelFile(file)){
-            try {
-                List<User> users = getUsersDataFromExcel(file.getInputStream());
-                this.userRepository.saveAll(users);
-            } catch (IOException e) {
-                throw new IllegalArgumentException("The file is not a valid excel file");
-            }
+    public Object saveUsersToDatabase(MultipartFile file) {
+        if (!isValidExcelFile(file)) {
+            HashMap<String, String> errors = new HashMap<>();
+            errors.put("error", "The file is not a valid Excel file");
+            return errors;
         }
+
+        try {
+            Object result = getUsersDataFromExcel(file.getInputStream());
+
+            if (result instanceof HashMap) {
+                Map<String, String> validationErrors = (Map<String, String>) result;
+                // Create a formatted error message from the validation errors
+                StringBuilder errorMessage = new StringBuilder("Validation errors found: \n ");
+                for (Map.Entry<String, String> error : validationErrors.entrySet()) {
+                    errorMessage.append(error.getKey())
+                            .append(" - ")
+                            .append(error.getValue())
+                            .append("\n");
+                }
+                return validationErrors;
+            }
+
+            if (result instanceof List) {
+                List<User> users = (List<User>) result;
+                if (users.isEmpty()) {
+                    HashMap<String, String> errors = new HashMap<>();
+                    errors.put("error", "No valid users found in the Excel file");
+                    return errors;
+                }
+                return null;
+                // No need to call saveAll since the getUsersDataFromExcel now handles the saving
+            }
+
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Failed to read the Excel file: " + e.getMessage());
+        } catch (ValidationException e) {
+            throw e;  // Rethrow validation exceptions
+        } catch (Exception e) {
+            throw new RuntimeException("An error occurred while processing the Excel file: " + e.getMessage());
+        }
+        return null;
     }
 
 
-    public List<User> getUsersDataFromExcel(InputStream inputStream) {
+    public Object getUsersDataFromExcel(InputStream inputStream) {
         List<User> users = new ArrayList<>();
-        User user = new User();
-        CreateUserDto createUserDto = new CreateUserDto();
+        Map<String, String> validationErrors = new LinkedHashMap<>();
+
         try {
             XSSFWorkbook workbook = new XSSFWorkbook(inputStream);
             XSSFSheet sheet = workbook.getSheet("user");
             int rowIndex = 0;
+
             for (Row row : sheet) {
                 if (rowIndex == 0) {
                     rowIndex++;
                     continue;
                 }
+
+                User user = new User();
+                CreateUserDto createUserDto = new CreateUserDto();
                 Iterator<Cell> cellIterator = row.iterator();
                 int cellIndex = 0;
-                // Create a new CreateUserDto object
-                while (cellIterator.hasNext()) {
 
+                while (cellIterator.hasNext()) {
                     Cell cell = cellIterator.next();
                     switch (cellIndex) {
                         case 0 -> {
                             String userName = cell.getStringCellValue();
                             user.setUsername(userName);
-                            createUserDto.setUsername(userName); // Set username in DTO
+                            createUserDto.setUsername(userName);
                         }
                         case 1 -> {
                             String email = cell.getStringCellValue();
                             user.setEmail(email);
-                            createUserDto.setEmail(email); // Set email in DTO
+                            createUserDto.setEmail(email);
                         }
                         case 2 -> {
                             String departmentName = cell.getStringCellValue();
@@ -246,60 +286,105 @@ public class UserServiceImpl implements UserService {
                         case 3 -> {
                             LocalDate dob = cell.getLocalDateTimeCellValue().toLocalDate();
                             user.setDob(dob);
-                            createUserDto.setDob(dob); // Set DOB in DTO
+                            createUserDto.setDob(dob);
                         }
                         case 4 -> {
-                            String phoneNumber = ((XSSFCell) cell).getRawValue();
+                            String phoneNumber = cell.getStringCellValue();
                             user.setPhoneNumber(phoneNumber);
-                            createUserDto.setPhoneNumber(phoneNumber); // Set phone number in DTO
+                            createUserDto.setPhoneNumber(phoneNumber);
                         }
                         case 5 -> {
                             String gender = cell.getStringCellValue();
                             user.setGender(gender);
-                            createUserDto.setGender(gender); // Set gender in DTO
+                            createUserDto.setGender(gender);
                         }
                         case 6 -> {
                             String employeeId = cell.getStringCellValue();
                             user.setEmployeeId(employeeId);
-                            createUserDto.setEmployeeId(employeeId); // Set employee ID in DTO
+                            createUserDto.setEmployeeId(employeeId);
                         }
                         case 7 -> {
                             String cardId = cell.getStringCellValue();
                             user.setCardId(cardId);
-                            createUserDto.setCardId(cardId); // Set card ID in DTO
-                        }
-                        default -> {
+                            createUserDto.setCardId(cardId);
                         }
                     }
                     cellIndex++;
                 }
-                Map<Integer, List<String>> validationErrors = new HashMap<>();
-                for (rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
-                    row = sheet.getRow(rowIndex);
-                    if (row == null) {
-                        continue;
-                    }
 
-                    List<String> rowErrors = (List<String>) validateUserData(createUserDto);
-                    if (!rowErrors.isEmpty()) {
-                        validationErrors.put(rowIndex + 1, rowErrors); // +1 because Excel is 1-indexed
+                // Validate the data using all constraints from CreateUserDto
+                Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
+                Set<ConstraintViolation<CreateUserDto>> violations = validator.validate(createUserDto);
+
+                if (!violations.isEmpty()) {
+                    StringBuilder errorMessage = new StringBuilder();
+                    for (ConstraintViolation<CreateUserDto> violation : violations) {
+                        errorMessage.append(violation.getPropertyPath())
+                                .append(": ")
+                                .append(violation.getMessage())
+                                .append("; ");
                     }
+                    validationErrors.put("Row " + (rowIndex + 1), errorMessage.toString());
                 }
-                user.setPassword(generatePassword(createUserDto));
-                user.setStatus(1);
-                user.setCreatedAt(LocalDateTime.now());
-                user.setUpdatedAt(LocalDateTime.now());
-                user.setCreatorId(UserContext.getUser().getUserId());
-                user.setUpdatorId(UserContext.getUser().getUserId());
-                user.setCreatorName(UserContext.getUser().getUsername());
-                user.setUpdatorName(UserContext.getUser().getUsername());
-                users.add(user);
 
+                // Additional custom validations
+                Map<String, String> customErrors = validateUserData(createUserDto);
+                if (!customErrors.isEmpty()) {
+                    String existingError = validationErrors.get("Row " + (rowIndex + 1));
+                    StringBuilder errorMessage = new StringBuilder(existingError != null ? existingError : "");
+
+                    for (Map.Entry<String, String> error : customErrors.entrySet()) {
+                        errorMessage.append(error.getKey())
+                                .append(": ")
+                                .append(error.getValue())
+                                .append("; ");
+                    }
+                    validationErrors.put("Row " + (rowIndex + 1), errorMessage.toString());
+                }
+
+                if (validationErrors.isEmpty()) {
+                    user.setPassword(generatePassword(createUserDto));
+                    user.setStatus(1);
+                    user.setCreatedAt(LocalDateTime.now());
+                    user.setUpdatedAt(LocalDateTime.now());
+                    user.setCreatorId(UserContext.getUser().getUserId());
+                    user.setUpdatorId(UserContext.getUser().getUserId());
+                    user.setCreatorName(UserContext.getUser().getUsername());
+                    user.setUpdatorName(UserContext.getUser().getUsername());
+                    users.add(user);
+                }
+
+                rowIndex++;
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+
+            // If there are any validation errors, return them
+            if (!validationErrors.isEmpty()) {
+                return validationErrors;
+            }
+
+            // Update existing users and add new ones
+            for (User user : users) {
+                User existingUser = userRepository.findByUsernameOrEmail(
+                        user.getUsername(), user.getEmail()
+                );
+                if (existingUser != null) {
+                    // Update existing user
+                    user.setId(existingUser.getId()); // Preserve the ID
+                    userRepository.save(user);
+                } else {
+                    // Add new user
+                    userRepository.save(user);
+                }
+            }
+
+            return users;
+
+        } catch (Exception e) {
+
+            return new HashMap<String, String>() {{
+                put("error", "Failed to process Excel file: " + e.getMessage());
+            }};
         }
-        return users;
     }
 
     @Override

@@ -23,7 +23,7 @@ public interface UserService {
 
     Map<String, String> validateUserData(@Valid CreateUserDto createUserDto);
 
-    void saveUsersToDatabase(MultipartFile file);
+    Object saveUsersToDatabase(MultipartFile file);
     boolean isValidExcelFile(MultipartFile file);
 
 

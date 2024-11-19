@@ -3,10 +3,8 @@ package com.example.vida.controller;
 import com.example.vida.dto.request.ChangePasswordRequest;
 import com.example.vida.dto.request.CreateUserDto;
 import com.example.vida.dto.request.LoginRequest;
-import com.example.vida.dto.request.RequestAppointmentDto;
 import com.example.vida.dto.response.APIResponse;
 import com.example.vida.entity.User;
-import com.example.vida.exception.ImportUserValidationException;
 import com.example.vida.exception.UserNotFoundException;
 import com.example.vida.exception.ValidationException;
 import com.example.vida.service.UserService;
@@ -16,10 +14,8 @@ import com.example.vida.utils.JwtTokenUtils;
 import io.micrometer.common.lang.Nullable;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
@@ -275,27 +271,33 @@ public class UserController {
         }
     }
 
-    @PostMapping("api/users/import")
-    public ResponseEntity<?> importUsersData(@RequestParam("file") MultipartFile file) {
-        // Check if the file is a valid Excel file
-        if (!userService.isValidExcelFile(file)) {
-            return APIResponse.responseBuilder(null, "Choose a valid excel file", HttpStatus.BAD_REQUEST);
+    @PostMapping("/import")
+    public ResponseEntity<Object> importUsers(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            return APIResponse.responseBuilder(
+                    null,
+                    "Please upload a file",
+                    HttpStatus.BAD_REQUEST
+            );
         }
 
-        try {
-            // Validate user data
-            Map<Integer, List<String>> validationErrors = new HashMap<>();
+        Object result = userService.saveUsersToDatabase(file);
 
-            if (validationErrors.isEmpty()) {
-                // If there are no validation errors, save users to database
-                this.userService.saveUsersToDatabase(file);
-                return APIResponse.responseBuilder(null, "Users imported successfully", HttpStatus.OK);
-            } else {
-                // If there are validation errors, return them
-                return APIResponse.responseBuilder(validationErrors, "Validation errors occurred", HttpStatus.BAD_REQUEST);
-            }
-        } catch (Exception ex) {
-            return APIResponse.responseBuilder(null, "An error occurred while processing the file: " + ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        if (result instanceof HashMap) {
+            @SuppressWarnings("unchecked")
+            HashMap<String, String> errors = (HashMap<String, String>) result;
+            return APIResponse.responseBuilder(
+                    errors,
+                    "Validation errors occurred",
+                    HttpStatus.BAD_REQUEST
+            );
         }
+
+        // If result is null, it means success
+        return APIResponse.responseBuilder(
+                null,
+                "Users imported successfully",
+                HttpStatus.OK
+        );
     }
 }
