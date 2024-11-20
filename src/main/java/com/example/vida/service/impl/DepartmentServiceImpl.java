@@ -13,10 +13,8 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
-import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -24,10 +22,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -37,9 +33,21 @@ public class DepartmentServiceImpl implements DepartmentService {
     @Autowired
     private CompanyRepository companyRepository;
 
-
+    //Get All Department by CompanyId:
     @Override
-    public Map<String, Object> searchDepartmentsByName(String searchText, Integer companyId, int page, int size) {
+    public List<Integer> getDepartmentsByCompanyId(Integer companyId) {
+        Company company = companyRepository.findById(Long.valueOf(companyId))
+                .orElseThrow(() -> new EntityNotFoundException("Không tồn tại company với id = " + companyId));
+
+        return departmentRepository.findByCompany(company)
+                .stream()
+                .map(Department::getId) // Chỉ lấy id của từng Department
+                .collect(Collectors.toList());
+    }
+
+    //Get All Department
+    @Override
+    public Map<String, Object> searchDepartments(String searchText, Integer companyId, int page, int size) {
         try {
             if (page > 0) {
                 page = page - 1;
@@ -49,11 +57,13 @@ public class DepartmentServiceImpl implements DepartmentService {
                 @Override
                 public Predicate toPredicate(Root<Department> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) {
                     List<Predicate> predicates = new ArrayList<>();
+                    // Add search by name
                     predicates.add(criteriaBuilder.like(root.get("name"), "%" + searchText + "%"));
+                    // Filter by company ID
                     if (companyId != null) {
-                        predicates.add(criteriaBuilder.equal(root.get("companyId"), companyId));
+                        predicates.add(criteriaBuilder.equal(root.get("company").get("id"), companyId));
                     }
-                    return criteriaBuilder.and(predicates.toArray(new Predicate[predicates.size()]));
+                    return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
                 }
             };
 
@@ -70,6 +80,9 @@ public class DepartmentServiceImpl implements DepartmentService {
         }
     }
 
+
+
+    //Create Department
     @Override
     public Department postDepartment(CreateDepartmentDto createDepartmentDto) {
         try {
@@ -94,18 +107,38 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     @Override
     public Department updateDepartment(Integer id, CreateDepartmentDto createDepartmentDto) {
+        Optional<Department> optionalDeparment = departmentRepository.findById(Long.valueOf(id));
+        if (optionalDeparment.isPresent()) {
+            Department existingDeparment = optionalDeparment.get();
+            UserDto currentUser = UserContext.getUser();
+
+            existingDeparment.setName(createDepartmentDto.getDepartmentName());
+            Company company = companyRepository.findById(Long.valueOf(createDepartmentDto.getCompanyId())).orElse(null);
+            existingDeparment.setCompany(company);
+
+            existingDeparment.setUpdatorId(currentUser.getUserId());
+            existingDeparment.setUpdatorName(currentUser.getUsername());
+
+            return departmentRepository.save(existingDeparment);
+        }
         return null;
     }
 
+    //Get Detail Department
     @Override
     public Department getDepartmentDetail(Integer id) {
         return departmentRepository.findById(Long.valueOf(id))
                 .orElseThrow(() -> new EntityNotFoundException("Không tồn tại department với id = " + id));
     }
 
+    //Delete Department
     @Override
-    public void deleteDepartmentsByIds(List<Integer> ids) {
-
+    public void deleteDepartmentsByIds(List<Long> ids) {
+        List<Department> departmentsToDelete = (List<Department>) departmentRepository.findAllById(ids);
+        if (departmentsToDelete.size() != ids.size()) {
+            throw new EntityNotFoundException("Some departments not found");
+        }
+        departmentRepository.deleteAll(departmentsToDelete);
     }
 
 }

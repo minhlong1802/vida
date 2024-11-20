@@ -1,5 +1,6 @@
 package com.example.vida.repository;
 
+import com.example.vida.entity.Company;
 import com.example.vida.entity.Department;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -17,4 +18,5 @@ public interface DepartmentRepository extends CrudRepository<Department, Long>, 
 
     List<Department> findByName(String name);
 
+    List<Department> findByCompany(Company company);
 }
