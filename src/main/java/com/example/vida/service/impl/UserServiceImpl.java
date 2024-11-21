@@ -1,13 +1,10 @@
 package com.example.vida.service.impl;
 
 import com.example.vida.dto.request.CreateUserDto;
-import com.example.vida.dto.request.UpdateUserDto;
 import com.example.vida.entity.Company;
 import com.example.vida.entity.Department;
 import com.example.vida.entity.User;
-import com.example.vida.exception.ImportUserValidationException;
 import com.example.vida.exception.UserNotFoundException;
-import com.example.vida.exception.UserValidationException;
 import com.example.vida.exception.ValidationException;
 import com.example.vida.repository.CompanyRepository;
 import com.example.vida.repository.DepartmentRepository;
@@ -18,15 +15,12 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
-import jakarta.validation.*;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFCell;
-import org.apache.poi.xssf.usermodel.XSSFRow;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Valid;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,15 +33,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.time.LocalDate;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Collectors;
 
 
 @Service
@@ -233,6 +225,15 @@ public class UserServiceImpl implements UserService {
         return null;
     }
 
+    public static boolean isRowEmpty(Row row) {
+        for (int cellNum = row.getFirstCellNum(); cellNum < row.getLastCellNum(); cellNum++) {
+            Cell cell = row.getCell(cellNum);
+            if (cell != null && cell.getCellType() != CellType.BLANK) {
+                return false;
+            }
+        }
+        return true;
+    }
 
     public Object getUsersDataFromExcel(InputStream inputStream) {
         List<User> users = new ArrayList<>();
@@ -248,6 +249,11 @@ public class UserServiceImpl implements UserService {
                     rowIndex++;
                     continue;
                 }
+                if (isRowEmpty(row)) {
+                    break;
+                }
+
+
 
                 User user = new User();
                 CreateUserDto createUserDto = new CreateUserDto();
@@ -357,9 +363,15 @@ public class UserServiceImpl implements UserService {
 
             // Update existing users and add new ones
             for (User user : users) {
-                User existingUser = userRepository.findByUsernameOrEmail(
+                List<User> existingUsers = userRepository.findByUsernameOrEmail(
                         user.getUsername(), user.getEmail()
                 );
+                if (existingUsers.size() > 1) {
+                    return new HashMap<String, String>() {{
+                        put("error", "Duplicate user information");
+                    }};
+                }
+                User existingUser = CollectionUtils.isEmpty(existingUsers)? null : existingUsers.get(0);
                 if (existingUser != null) {
                     // Update existing user
                     user.setId(existingUser.getId()); // Preserve the ID
@@ -373,7 +385,7 @@ public class UserServiceImpl implements UserService {
             return users;
 
         } catch (Exception e) {
-
+            e.printStackTrace();
             return new HashMap<String, String>() {{
                 put("error", "Failed to process Excel file: " + e.getMessage());
             }};
