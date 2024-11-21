@@ -7,6 +7,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -22,6 +23,15 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     boolean existsByEmail(String email);
 
     Page<User> findAll(Specification<User> sepecification, Pageable pageable);
+
+    List<User> findByUsernameOrEmail(String username, String email);
+
+    boolean existsByUsernameAndIdNot(String username, Integer id);
+    boolean existsByEmailAndIdNot(String email, Integer id);
+    boolean existsByPhoneNumberAndIdNot(String phoneNumber, Integer id);
+    boolean existsByCardIdAndIdNot(String cardId, Integer id);
+    boolean existsByEmployeeIdAndIdNot(String employeeId, Integer id);
+
     @Query("SELECT u FROM User u WHERE "
             + "(:searchText IS NULL OR u.username LIKE %:searchText%) AND "
             + "(:companyId IS NULL OR u.department.company.id = :companyId) AND "
