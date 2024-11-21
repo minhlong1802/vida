@@ -71,14 +71,16 @@ public class DepartmentController {
     @GetMapping("/by-company")
     public ResponseEntity<Object> getDepartmentsByCompanyId(@RequestParam Integer companyId) {
         try {
-            List<Integer> departmentIds = departmentService.getDepartmentsByCompanyId(companyId);
-            return APIResponse.responseBuilder(departmentIds, null, HttpStatus.OK);
+            // Gọi service để lấy danh sách department
+            List<Department> departments = departmentService.getDepartmentsByCompanyId(companyId);
+            return APIResponse.responseBuilder(departments, null, HttpStatus.OK);
         } catch (EntityNotFoundException e) {
             return APIResponse.responseBuilder(Collections.emptyList(), e.getMessage(), HttpStatus.NOT_FOUND);
         } catch (Exception e) {
             return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<Object> getDepartmentDetail(@PathVariable Integer id) {

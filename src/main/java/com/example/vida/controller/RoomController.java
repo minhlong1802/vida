@@ -41,7 +41,7 @@ public class RoomController {
             if (!errors.isEmpty()) {
                 return APIResponse.responseBuilder(
                         errors,
-                        "Du lieu gui len khong dung dinh dang",
+                        "The data sent is not in the correct format.",
                         HttpStatus.BAD_REQUEST
                 );
             }
@@ -113,7 +113,7 @@ public class RoomController {
     @DeleteMapping()
     public ResponseEntity<Object> deleteRoomsByIds(@RequestBody List<Integer> ids) {
         if (ids == null || ids.isEmpty()) {
-            return APIResponse.responseBuilder(null, "Dữ liệu gửi lên không đúng định dạng", HttpStatus.BAD_REQUEST);
+            return APIResponse.responseBuilder(null, "The data sent is not in the correct format.", HttpStatus.BAD_REQUEST);
         }
 
         try {

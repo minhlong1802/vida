@@ -10,8 +10,7 @@ import java.util.Map;
 public interface DepartmentService {
 
     //Get All Department by CompanyId:
-    List<Integer> getDepartmentsByCompanyId(Integer companyId);
-
+    List<Department> getDepartmentsByCompanyId(Integer companyId);
     Map<String, Object> searchDepartments(String searchText, Integer companyId, int page, int size);
 
     Department postDepartment(CreateDepartmentDto createDepartmentDto);

@@ -1,6 +1,7 @@
 package com.example.vida.entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -47,6 +48,6 @@ public class Company {
     private String updatorName;
 
     @OneToMany(mappedBy = "company")
-    @JsonBackReference
+    @JsonIgnore
     private List<Department> departments = new ArrayList<>();
 }
