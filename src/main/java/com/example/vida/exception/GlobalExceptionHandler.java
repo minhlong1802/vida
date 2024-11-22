@@ -52,20 +52,5 @@ public class GlobalExceptionHandler {
                 HttpStatus.NOT_FOUND
         );
     }
-    @ExceptionHandler(ImportUserValidationException.class)
-    public ResponseEntity<Map<String, String>> handleImportValidationExceptions(ImportUserValidationException ex,BindingResult bindingResult) {
-        Map<String, String> validationErrors = new HashMap<>();
-        if (bindingResult.hasErrors()) {
-            bindingResult.getAllErrors().forEach(error -> {
-                if (error instanceof FieldError) {
-                    FieldError fieldError = (FieldError) error;
-                    String fieldName = fieldError.getField();
-                    String errorMessage = fieldError.getDefaultMessage();
-                    int rowNumber = ((CreateUserDto) fieldError.getRejectedValue()).getRowNumber();
-                    validationErrors.put("row " + rowNumber, fieldName + ": " + errorMessage);
-                }
-            });
-        }
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(validationErrors);
-    }
+
 }

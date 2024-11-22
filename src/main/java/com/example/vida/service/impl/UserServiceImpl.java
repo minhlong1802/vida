@@ -4,6 +4,7 @@ import com.example.vida.dto.request.CreateUserDto;
 import com.example.vida.entity.Company;
 import com.example.vida.entity.Department;
 import com.example.vida.entity.User;
+import com.example.vida.exception.UpdateUserValidationException;
 import com.example.vida.exception.UserNotFoundException;
 import com.example.vida.exception.ValidationException;
 import com.example.vida.repository.CompanyRepository;
@@ -110,8 +111,10 @@ public class UserServiceImpl implements UserService {
     public User updateUser(Integer id, CreateUserDto createUserDto) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
-
-        updateUserFromRequest(user, createUserDto);
+        Map<String,String> updateErrors = updateUserFromRequest(user, createUserDto);
+        if (!updateErrors.isEmpty()){
+            throw new UpdateUserValidationException(updateErrors);
+        }
 
         user.setUpdatedAt(LocalDateTime.now());
         user.setUpdatorId(UserContext.getUser().getUserId()); // Assuming the updator ID is 1, you might want to get this from authenticated user
@@ -555,14 +558,14 @@ public class UserServiceImpl implements UserService {
     }
 
 
-    private void updateUserFromRequest(User user, CreateUserDto createUserDto) {
-        // For username update
+    private Map<String, String> updateUserFromRequest(User user, CreateUserDto createUserDto) {
+        Map<String, String> updateErrors = new HashMap<String, String>();        // For username update
         if (createUserDto.getUsername() != null) {
             // Only validate and update if username is actually different
             if (!createUserDto.getUsername().equals(user.getUsername())) {
                 // Check if new username exists for any other user
                 if (userRepository.existsByUsernameAndIdNot(createUserDto.getUsername(), user.getId())) {
-                    throw new IllegalArgumentException("Username already exists");
+                    updateErrors.put("username", "Username already exists");
                 }
                 user.setUsername(createUserDto.getUsername());
             }
@@ -574,7 +577,7 @@ public class UserServiceImpl implements UserService {
             if (!createUserDto.getEmail().equals(user.getEmail())) {
                 // Check if new email exists for any other user
                 if (userRepository.existsByEmailAndIdNot(createUserDto.getEmail(), user.getId())) {
-                    throw new IllegalArgumentException("Email already exists");
+                    updateErrors.put("email", "Email already exists");
                 }
                 user.setEmail(createUserDto.getEmail());
             }
@@ -592,7 +595,7 @@ public class UserServiceImpl implements UserService {
         if (createUserDto.getPhoneNumber() != null) {
             if (!createUserDto.getPhoneNumber().equals(user.getPhoneNumber())) {
                 if (userRepository.existsByPhoneNumberAndIdNot(createUserDto.getPhoneNumber(), user.getId())){
-                    throw new IllegalArgumentException(("Phone Number already exists"));
+                    updateErrors.put("phonenumber", "Phonenumber already exists");
                 }
             }
             user.setPhoneNumber(createUserDto.getPhoneNumber());
@@ -601,7 +604,7 @@ public class UserServiceImpl implements UserService {
         if (createUserDto.getEmployeeId() != null) {
             if (!createUserDto.getEmployeeId().equals(user.getEmployeeId())) {
                 if (userRepository.existsByEmployeeIdAndIdNot(createUserDto.getEmployeeId(), user.getId())){
-                    throw new IllegalArgumentException(("Employee Code already exists"));
+                    updateErrors.put("employeeCode", "Employee Code already exists");
                 }
             }
             user.setPhoneNumber(createUserDto.getEmployeeId());
@@ -609,10 +612,11 @@ public class UserServiceImpl implements UserService {
         if (createUserDto.getCardId() != null) {
             if (!createUserDto.getCardId().equals(user.getCardId())) {
                 if (userRepository.existsByCardIdAndIdNot(createUserDto.getCardId(), user.getId())){
-                    throw new IllegalArgumentException(("Card already exists"));
+                    updateErrors.put("CardId", "CardId already exists");
                 }
             }
             user.setCardId(createUserDto.getCardId());
         }
+        return updateErrors;
     }
 }
