@@ -9,12 +9,14 @@ import com.example.vida.exception.ConflictException;
 import com.example.vida.exception.RoomNotFoundException;
 import com.example.vida.exception.ValidationException;
 import com.example.vida.service.AppointmentService;
+import com.example.vida.service.EmailService;
 import io.micrometer.common.lang.Nullable;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,6 +31,9 @@ public class AppointmentController {
 
     @Autowired
     private AppointmentService appointmentService;
+
+    @Autowired
+    private EmailService mailSender;
 
     @PostMapping
     public ResponseEntity<Object> createAppointment(
@@ -70,6 +75,9 @@ public class AppointmentController {
         // Xử lý tạo appointment nếu không có lỗi
         try {
             Appointment appointment = appointmentService.createAppointment(requestAppointmentDto);
+            // Send email notification
+            mailSender.sendAppointmentNotification(appointment, requestAppointmentDto);
+
             return APIResponse.responseBuilder(
                     appointment,
                     "Appointment created successfully",
