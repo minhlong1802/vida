@@ -35,9 +35,9 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     //Get All Department by CompanyId:
     @Override
-    public List<Department> getDepartmentsByCompanyId(Integer companyId) {
+    public List<Department> getDepartmentsByCompanyId(Long companyId) {
         // Tìm company dựa trên ID
-        Company company = companyRepository.findById(Long.valueOf(companyId))
+        Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new EntityNotFoundException("Không tồn tại company với id = " + companyId));
 
         // Lấy danh sách department thuộc company đó
