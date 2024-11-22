@@ -3,23 +3,23 @@ package com.example.vida.controller;
 import com.example.vida.dto.request.ChangePasswordRequest;
 import com.example.vida.dto.request.CreateUserDto;
 import com.example.vida.dto.request.LoginRequest;
-import com.example.vida.dto.request.RequestAppointmentDto;
 import com.example.vida.dto.response.APIResponse;
 import com.example.vida.entity.User;
 import com.example.vida.exception.UserNotFoundException;
 import com.example.vida.exception.ValidationException;
 import com.example.vida.service.UserService;
 import com.example.vida.service.impl.UserDetailServiceImpl;
+import com.example.vida.service.impl.UserServiceImpl;
 import com.example.vida.utils.JwtTokenUtils;
 import io.micrometer.common.lang.Nullable;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.*;
-import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
 import java.util.List;
@@ -33,11 +33,13 @@ public class UserController {
     private final UserService userService;
     private final JwtTokenUtils jwtTokenUtil;
     private final UserDetailServiceImpl userDetailServiceImpl;
+    private final UserServiceImpl userServiceImpl;
 
-    public UserController(UserService userService, JwtTokenUtils jwtTokenUtil, UserDetailServiceImpl userDetailServiceImpl) {
+    public UserController(UserService userService, JwtTokenUtils jwtTokenUtil, UserDetailServiceImpl userDetailServiceImpl, UserServiceImpl userServiceImpl) {
         this.userService = userService;
         this.jwtTokenUtil = jwtTokenUtil;
         this.userDetailServiceImpl = userDetailServiceImpl;
+        this.userServiceImpl = userServiceImpl;
     }
 
 
@@ -135,7 +137,7 @@ public class UserController {
 
         // 2. Thêm các lỗi từ business validation
         try {
-            Map<String, String> businessErrors = userService.validateUserData(createUserDto);
+            Map<String, String> businessErrors = userService.validateUserData(createUserDto,"create");
             errors.putAll(businessErrors);
         } catch (Exception e) {
             log.error("Error during business validation", e);
@@ -175,7 +177,7 @@ public class UserController {
 
         // 2. Thêm các lỗi từ business validation
         try {
-            Map<String, String> businessErrors = userService.validateUserData(createUserDto);
+            Map<String, String> businessErrors = userService.validateUserData(createUserDto,"update");
             errors.putAll(businessErrors);
         } catch (Exception e) {
             log.error("Error during business validation", e);
@@ -243,11 +245,11 @@ public class UserController {
     }
     @GetMapping("api/users")
     public ResponseEntity<Object> getUsers(@RequestParam @Nullable String searchText,
-                                                    @RequestParam @Nullable Integer companyId,
-                                                    @RequestParam @Nullable Integer departmentId,
-                                                    @RequestParam @Nullable Integer status,
-                                                    @RequestParam(defaultValue = "1") Integer page,
-                                                    @RequestParam(defaultValue = "10") Integer size) {
+                                           @RequestParam @Nullable Integer companyId,
+                                           @RequestParam @Nullable Integer departmentId,
+                                           @RequestParam @Nullable Integer status,
+                                           @RequestParam(defaultValue = "1") Integer page,
+                                           @RequestParam(defaultValue = "10") Integer size) {
         try {
             Map<String, Object> mapUser = userService.searchUsersByName(searchText,companyId,departmentId,status,page,size);
             return APIResponse.responseBuilder(mapUser, null, HttpStatus.OK);
@@ -269,31 +271,33 @@ public class UserController {
         }
     }
 
-    @GetMapping(value = "api/users/export", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
-    public ResponseEntity<byte[]> exportUsers(
-            @RequestParam(required = false) String searchText,
-            @RequestParam(required = false) Integer companyId,
-            @RequestParam(required = false) Integer departmentId,
-            @RequestParam(required = false) Integer status
-    ) {
-        try {
-            byte[] excelBytes = userService.exportUsers(searchText, companyId, departmentId, status);
-
-            if (excelBytes == null || excelBytes.length == 0) {
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-            }
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.parseMediaType("application/vnd.ms-excel"));
-            headers.setContentDisposition(ContentDisposition.attachment()
-                    .filename("users.xlsx").build());
-
-            return new ResponseEntity<>(excelBytes, headers, HttpStatus.OK);
-        } catch (ValidationException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage().getBytes());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(("Error during exporting file: " + e.getMessage()).getBytes());
+    @PostMapping("/import")
+    public ResponseEntity<Object> importUsers(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            return APIResponse.responseBuilder(
+                    null,
+                    "Please upload a file",
+                    HttpStatus.BAD_REQUEST
+            );
         }
+
+        Object result = userService.saveUsersToDatabase(file);
+
+        if (result instanceof HashMap) {
+            @SuppressWarnings("unchecked")
+            HashMap<String, String> errors = (HashMap<String, String>) result;
+            return APIResponse.responseBuilder(
+                    errors,
+                    "Validation errors occurred",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        // If result is null, it means success
+        return APIResponse.responseBuilder(
+                null,
+                "Users imported successfully",
+                HttpStatus.OK
+        );
     }
 }
