@@ -24,7 +24,6 @@ public interface UserService {
     Map<String, String> validateUserData(@Valid CreateUserDto createUserDto, String mode);
 
     Object saveUsersToDatabase(MultipartFile file);
-    boolean isValidExcelFile(MultipartFile file);
 
 
 }

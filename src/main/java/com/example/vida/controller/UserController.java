@@ -5,6 +5,7 @@ import com.example.vida.dto.request.CreateUserDto;
 import com.example.vida.dto.request.LoginRequest;
 import com.example.vida.dto.response.APIResponse;
 import com.example.vida.entity.User;
+import com.example.vida.exception.UpdateUserValidationException;
 import com.example.vida.exception.UserNotFoundException;
 import com.example.vida.exception.ValidationException;
 import com.example.vida.service.UserService;
@@ -14,6 +15,7 @@ import com.example.vida.utils.JwtTokenUtils;
 import io.micrometer.common.lang.Nullable;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.sql.Update;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -202,9 +204,13 @@ public class UserController {
         } catch (UserNotFoundException e) {
             return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.NOT_FOUND);
 
-        } catch (Exception e) {
+        } catch (UpdateUserValidationException e){
+            return APIResponse.responseBuilder(e.getUpdateErrors(), e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+        catch (Exception e) {
             return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
+
     }
 
     @DeleteMapping("api/users/{id}")

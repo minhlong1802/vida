@@ -27,7 +27,6 @@ public class Department {
 
     @ManyToOne
     @JoinColumn(name = "company_id")
-    @JsonIgnore
     private Company company;
 
     @CreationTimestamp
