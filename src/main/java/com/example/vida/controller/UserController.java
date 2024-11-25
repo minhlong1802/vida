@@ -2,6 +2,7 @@ package com.example.vida.controller;
 
 import com.example.vida.dto.request.ChangePasswordRequest;
 import com.example.vida.dto.request.CreateUserDto;
+import com.example.vida.dto.request.DeleteUsersRequest;
 import com.example.vida.dto.request.LoginRequest;
 import com.example.vida.dto.response.APIResponse;
 import com.example.vida.entity.User;
@@ -23,6 +24,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -226,16 +228,17 @@ public class UserController {
     }
 
     @DeleteMapping("/api/users")
-    public ResponseEntity<Object> deleteUsers(@RequestBody List<Integer> ids) {
-        if (ids == null || ids.isEmpty()) {
+    public ResponseEntity<Object> deleteUsers(@RequestBody DeleteUsersRequest request) {
+        if (request.getIds() == null || request.getIds().isEmpty()) {
             return APIResponse.responseBuilder(
                     null,
                     "No userId provided",
                     HttpStatus.BAD_REQUEST
             );
         }
+
         try {
-            userService.deleteUsers(ids);
+            userService.deleteUsers(request);
             return APIResponse.responseBuilder(
                     null,
                     "Users deleted successfully",
