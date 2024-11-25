@@ -56,7 +56,7 @@ public class DepartmentController {
     }
 
     @GetMapping()
-    public ResponseEntity<Object> searchDepartments(@RequestParam String searchText,
+    public ResponseEntity<Object> searchDepartments(@RequestParam(defaultValue = "")  String searchText,
                                                     @RequestParam @Nullable Integer companyId,
                                                     @RequestParam(defaultValue = "1") Integer pageNo,
                                                     @RequestParam(defaultValue = "10") Integer pageSize) {
@@ -69,7 +69,7 @@ public class DepartmentController {
     }
 
     @GetMapping("/by-company")
-    public ResponseEntity<Object> getDepartmentsByCompanyId(@RequestParam Integer companyId) {
+    public ResponseEntity<Object> getDepartmentsByCompanyId( @RequestParam Long companyId) {
         try {
             // Gọi service để lấy danh sách department
             List<Department> departments = departmentService.getDepartmentsByCompanyId(companyId);
