@@ -612,7 +612,7 @@ public class UserServiceImpl implements UserService {
                     updateErrors.put("employeeCode", "Employee Code already exists");
                 }
             }
-            user.setPhoneNumber(createUserDto.getEmployeeId());
+            user.setEmployeeId(createUserDto.getEmployeeId());
         }
         if (createUserDto.getCardId() != null) {
             if (!createUserDto.getCardId().equals(user.getCardId())) {
