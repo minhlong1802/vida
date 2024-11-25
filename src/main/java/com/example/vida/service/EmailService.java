@@ -29,7 +29,7 @@ public class EmailService {
             MimeMessageHelper helper = new MimeMessageHelper(message, true);
 
             helper.setFrom(fromEmail);
-            helper.setTo("nmlong@yopmail.com");
+            helper.setTo("nguyenlong18022004@gmail.com");
             helper.setSubject("New Appointment Created");
 
             String emailContent = buildEmailContent(appointment, requestDto);
