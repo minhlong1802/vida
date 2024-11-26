@@ -107,15 +107,15 @@ public class AppointmentController {
     @GetMapping()
     public ResponseEntity<Object> searchAppointments(@RequestParam @Nullable String searchText,
                                                     @RequestParam @Nullable Integer roomId,
-                                                    @RequestParam(defaultValue = "1") Integer page,
-                                                    @RequestParam(defaultValue = "10") Integer size,
+                                                    @RequestParam(defaultValue = "1") Integer pageNo,
+                                                    @RequestParam(defaultValue = "10") Integer pageSize,
                                                     @RequestParam @Nullable Integer userId) {
         try {
-            if(page<=0&&size<=0) {
-                page = 1;
-                size = 1;
+            if(pageNo<=0&&pageSize<=0) {
+                pageNo = 1;
+                pageSize = 1;
             }
-            Map<String, Object> mapAppointment = appointmentService.searchAppointmentByTitle(searchText, roomId, page, size, userId);
+            Map<String, Object> mapAppointment = appointmentService.searchAppointmentByTitle(searchText, roomId, pageNo, pageSize, userId);
             return APIResponse.responseBuilder(mapAppointment, null, HttpStatus.OK);
         } catch (Exception e) {
             return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
