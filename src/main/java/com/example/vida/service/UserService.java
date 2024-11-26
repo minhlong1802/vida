@@ -22,6 +22,7 @@ public interface UserService {
     Map<String, Object> searchUsersByName(String searchText, Integer companyId, Integer departmentId, Integer status, Integer page, Integer size);
 
     void deleteUsers(DeleteUsersRequest request) throws UserNotFoundException;
+    byte[] exportUsers(String searchText,Integer companyId, Integer departmentId, Integer status);
 
     Map<String, String> validateUserData(@Valid CreateUserDto createUserDto, String mode);
 
