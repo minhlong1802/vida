@@ -1,6 +1,7 @@
 package com.example.vida.controller;
 
 import com.example.vida.dto.request.CreateRoomDto;
+import com.example.vida.dto.request.DeleteRoomsRequest;
 import com.example.vida.dto.request.RoomFilterRequest;
 import com.example.vida.dto.response.APIResponse;
 import com.example.vida.entity.Room;
@@ -111,13 +112,13 @@ public class RoomController {
     }
 
     @DeleteMapping()
-    public ResponseEntity<Object> deleteRoomsByIds(@RequestBody List<Integer> ids) {
-        if (ids == null || ids.isEmpty()) {
+    public ResponseEntity<Object> deleteRoomsByIds(@RequestBody DeleteRoomsRequest request) {
+        if (request.getIds() == null || request.getIds().isEmpty()) {
             return APIResponse.responseBuilder(null, "The data sent is not in the correct format.", HttpStatus.BAD_REQUEST);
         }
 
         try {
-            roomService.deleteRoomsByIds(ids);
+            roomService.deleteRoomsByIds(request);
             return APIResponse.responseBuilder(null, "Rooms deleted successfully", HttpStatus.OK);
         } catch (EntityNotFoundException e) {
             return APIResponse.responseBuilder(null, "Some rooms not found", HttpStatus.NOT_FOUND);

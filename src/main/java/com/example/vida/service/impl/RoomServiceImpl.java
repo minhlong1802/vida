@@ -1,9 +1,11 @@
 package com.example.vida.service.impl;
 
 import com.example.vida.dto.request.CreateRoomDto;
+import com.example.vida.dto.request.DeleteRoomsRequest;
 import com.example.vida.dto.request.RoomFilterRequest;
 import com.example.vida.dto.response.UserDto;
 import com.example.vida.entity.Room;
+import com.example.vida.exception.RoomNotFoundException;
 import com.example.vida.repository.RoomRepository;
 import com.example.vida.service.RoomService;
 import com.example.vida.utils.UserContext;
@@ -148,9 +150,9 @@ public class RoomServiceImpl implements RoomService {
         return null;
     }
     @Override
-    public void deleteRoomsByIds(List<Integer> ids) {
-        List<Room> roomsToDelete = (List<Room>) roomRepository.findAllById(ids);
-        if (roomsToDelete.size() != ids.size()) {
+    public void deleteRoomsByIds(DeleteRoomsRequest request) throws RoomNotFoundException {
+        List<Room> roomsToDelete = (List<Room>) roomRepository.findAllById(request.getIds());
+        if (roomsToDelete.size() != request.getIds().size()) {
             throw new EntityNotFoundException("Some rooms not found");
         }
         roomRepository.deleteAll(roomsToDelete);
