@@ -279,7 +279,7 @@ public class UserController {
         }
     }
 
-    @PostMapping("/api/users/import")
+    @PostMapping("api/users/import")
     public ResponseEntity<Object> importUsers(@RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
             return APIResponse.responseBuilder(
