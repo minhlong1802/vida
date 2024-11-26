@@ -59,12 +59,12 @@ public class AppointmentServiceImpl implements AppointmentService {
     private static final String TIME_PATTERN = "HH:mm";
     private static final DateTimeFormatter formatterTime = DateTimeFormatter.ofPattern(TIME_PATTERN);
 
-    public Map<String, Object> searchAppointmentByTitle(String searchText, Integer roomId, int page, int size, Integer userId){
+    public Map<String, Object> searchAppointmentByTitle(String searchText, Integer roomId, int pageNo, int pageSize, Integer userId){
         try {
-            if (page > 0) {
-                page = page - 1;
+            if (pageNo > 0) {
+                pageNo = pageNo - 1;
             }
-            Pageable pageable = PageRequest.of(page, size);
+            Pageable pageable = PageRequest.of(pageNo, pageSize);
             Specification<Appointment> specification = new Specification<Appointment>() {
                 @Override
                 public Predicate toPredicate(Root<Appointment> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) {
