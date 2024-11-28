@@ -1,7 +1,7 @@
 package com.example.vida.service.impl;
 
 import com.example.vida.dto.request.CreateUserDto;
-import com.example.vida.dto.request.DeleteUsersRequest;
+import com.example.vida.dto.request.DeleteRequest;
 import com.example.vida.entity.Company;
 import com.example.vida.entity.Department;
 import com.example.vida.entity.User;
@@ -33,7 +33,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
@@ -145,7 +144,7 @@ public class UserServiceImpl implements UserService {
         return user;
     }
 
-    public void deleteUsers(DeleteUsersRequest request) throws UserNotFoundException {
+    public void deleteUsers(DeleteRequest request) throws UserNotFoundException {
         List<Integer> ids = request.getIds();
         List<Integer> notFoundIds = new ArrayList<>();
         List<Integer> existingIds = new ArrayList<>();

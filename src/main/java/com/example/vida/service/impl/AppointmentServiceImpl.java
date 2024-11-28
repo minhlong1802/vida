@@ -1,5 +1,6 @@
 package com.example.vida.service.impl;
 
+import com.example.vida.dto.request.DeleteRequest;
 import com.example.vida.dto.request.RequestAppointmentDto;
 import com.example.vida.dto.response.UnavailableTimeSlotDTO;
 import com.example.vida.entity.Appointment;
@@ -664,8 +665,13 @@ public class AppointmentServiceImpl implements AppointmentService {
         log.info("Deleted {} future appointments with same pattern starting from date {}. Room: {}, Time: {}-{}",
                 deletedCount, selectedDate, room.getId(), startTime, endTime);
     }
-    public void deleteAppointments(List<Integer> ids) {
-        List<Integer> existingIds = appointmentRepository.findAllExistingIds(ids);
+    public void deleteAppointments(DeleteRequest request) {
+        List<Integer> ids = request.getIds();
+        List<Appointment> appointmentsToDelete = appointmentRepository.findAllById(ids);
+
+        List<Integer> existingIds = appointmentsToDelete.stream()
+                .map(Appointment::getId)
+                .toList();
 
         List<Integer> notFoundIds = ids.stream()
                 .filter(id -> !existingIds.contains(id))
@@ -675,7 +681,7 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new AppointmentNotFoundException("Appointments not found for ids: " + notFoundIds);
         }
 
-        appointmentRepository.deleteAllById(ids);
+        appointmentRepository.deleteAll(appointmentsToDelete);
     }
 
     public Appointment getAppointmentById(Integer id){

@@ -1,7 +1,7 @@
 package com.example.vida.controller;
 
 import com.example.vida.dto.request.CreateRoomDto;
-import com.example.vida.dto.request.DeleteRoomsRequest;
+import com.example.vida.dto.request.DeleteRequest;
 import com.example.vida.dto.request.RoomFilterRequest;
 import com.example.vida.dto.response.APIResponse;
 import com.example.vida.entity.Room;
@@ -12,13 +12,11 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
-import javax.naming.Binding;
 import java.util.*;
 
 @RestController
@@ -112,7 +110,7 @@ public class RoomController {
     }
 
     @DeleteMapping()
-    public ResponseEntity<Object> deleteRoomsByIds(@RequestBody DeleteRoomsRequest request) {
+    public ResponseEntity<Object> deleteRoomsByIds(@RequestBody DeleteRequest request) {
         if (request.getIds() == null || request.getIds().isEmpty()) {
             return APIResponse.responseBuilder(null, "The data sent is not in the correct format.", HttpStatus.BAD_REQUEST);
         }
