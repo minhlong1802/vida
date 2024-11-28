@@ -1,7 +1,7 @@
 package com.example.vida.service.impl;
 
 import com.example.vida.dto.request.CreateRoomDto;
-import com.example.vida.dto.request.DeleteRoomsRequest;
+import com.example.vida.dto.request.DeleteRequest;
 import com.example.vida.dto.request.RoomFilterRequest;
 import com.example.vida.dto.response.UserDto;
 import com.example.vida.entity.Room;
@@ -18,7 +18,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import org.springframework.validation.BindingResult;
 
 import java.util.*;
 
@@ -150,7 +149,7 @@ public class RoomServiceImpl implements RoomService {
         return null;
     }
     @Override
-    public void deleteRoomsByIds(DeleteRoomsRequest request) throws RoomNotFoundException {
+    public void deleteRoomsByIds(DeleteRequest request) throws RoomNotFoundException {
         List<Room> roomsToDelete = (List<Room>) roomRepository.findAllById(request.getIds());
         if (roomsToDelete.size() != request.getIds().size()) {
             throw new EntityNotFoundException("Some rooms not found");
