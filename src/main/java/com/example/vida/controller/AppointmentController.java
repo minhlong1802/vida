@@ -1,5 +1,6 @@
 package com.example.vida.controller;
 
+import com.example.vida.dto.request.DeleteRequest;
 import com.example.vida.dto.request.RequestAppointmentDto;
 import com.example.vida.dto.response.APIResponse;
 import com.example.vida.dto.response.UnavailableTimeSlotDTO;
@@ -191,16 +192,13 @@ public class AppointmentController {
         }
     }
     @DeleteMapping()
-    public ResponseEntity<Object> deleteAppointments(@RequestBody List<Integer> ids) {
+    public ResponseEntity<Object> deleteAppointments(@RequestBody DeleteRequest request) {
         try {
-            if(ids.isEmpty()){
-                return APIResponse.responseBuilder(
-                        null,
-                        "Id is required",
-                        HttpStatus.BAD_REQUEST
-                );
+            if (request.getIds() == null || request.getIds().isEmpty()) {
+                return APIResponse.responseBuilder(null, "The data sent is not in the correct format.", HttpStatus.BAD_REQUEST);
             }
-            appointmentService.deleteAppointments(ids);
+
+            appointmentService.deleteAppointments(request);
             return APIResponse.responseBuilder(
                     null,
                     "Appointments deleted successfully",
