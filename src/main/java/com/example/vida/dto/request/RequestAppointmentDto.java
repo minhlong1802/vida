@@ -41,7 +41,7 @@ public class RequestAppointmentDto {
 
     private Set<Integer> userIds = new HashSet<>();
 
-    private List<String> weeklyDay;
+    private List<String> weeklyDays;
 
     private Integer updaterSelection;
 }
