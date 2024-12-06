@@ -113,7 +113,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                     appointments.addAll(createDailyAppointments(baseAppointment));
                     break;
                 case WEEKLY:
-                    List<DayOfWeek> weeklyDays = convertToDayOfWeek(requestAppointmentDto.getWeeklyDay());
+                    List<DayOfWeek> weeklyDays = convertToDayOfWeek(requestAppointmentDto.getWeeklyDays());
                     appointments.addAll(createWeeklyAppointments(baseAppointment, weeklyDays));
                     break;
                 case ONLY:
@@ -398,7 +398,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     private void validateWeeklyRecurrence(RequestAppointmentDto appointmentDto, Map<String, String> errors) {
-        List<String> weeklyDays = appointmentDto.getWeeklyDay();
+        List<String> weeklyDays = appointmentDto.getWeeklyDays();
         if (weeklyDays == null || weeklyDays.isEmpty()) {
             errors.put("weeklyDay", "Weekly days must be specified for weekly recurring appointments");
             return;
@@ -586,7 +586,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                     newAppointments = createDailyAppointments(baseAppointment);
                     break;
                 case WEEKLY:
-                    List<DayOfWeek> weeklyDays = convertToDayOfWeek(requestAppointmentDto.getWeeklyDay());
+                    List<DayOfWeek> weeklyDays = convertToDayOfWeek(requestAppointmentDto.getWeeklyDays());
                     newAppointments = createWeeklyAppointments(baseAppointment,weeklyDays);
                     break;
                 default:

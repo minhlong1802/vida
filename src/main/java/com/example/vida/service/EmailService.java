@@ -70,7 +70,7 @@ public class EmailService {
                 requestDto.getContentBrief(),
                 requestDto.getRecurrencePattern(),
                 requestDto.getRecurrenceEndDate(),
-                String.join(", ", requestDto.getWeeklyDay())
+                String.join(", ", requestDto.getWeeklyDays())
         );
     }
 }
