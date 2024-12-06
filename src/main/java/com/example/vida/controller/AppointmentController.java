@@ -5,10 +5,7 @@ import com.example.vida.dto.request.RequestAppointmentDto;
 import com.example.vida.dto.response.APIResponse;
 import com.example.vida.dto.response.UnavailableTimeSlotDTO;
 import com.example.vida.entity.Appointment;
-import com.example.vida.exception.AppointmentNotFoundException;
-import com.example.vida.exception.ConflictException;
-import com.example.vida.exception.RoomNotFoundException;
-import com.example.vida.exception.ValidationException;
+import com.example.vida.exception.*;
 import com.example.vida.service.AppointmentService;
 import com.example.vida.service.EmailService;
 import io.micrometer.common.lang.Nullable;
@@ -81,7 +78,7 @@ public class AppointmentController {
             return APIResponse.responseBuilder(
                     appointment,
                     "Appointment created successfully",
-                    HttpStatus.CREATED
+                    HttpStatus.OK
             );
         } catch (RoomNotFoundException e){
             return APIResponse.responseBuilder(
@@ -170,7 +167,13 @@ public class AppointmentController {
                     e.getMessage(),
                     HttpStatus.NOT_FOUND
             );
-        } catch (RoomNotFoundException e){
+        }catch (AppointmentValidationException e) {
+            return APIResponse.responseBuilder(
+                    null,
+                    e.getMessage(),
+                    HttpStatus.BAD_REQUEST
+            );}
+        catch (RoomNotFoundException e){
             return APIResponse.responseBuilder(
                     null,
                     "Room not found",

@@ -118,6 +118,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                     appointments.addAll(createWeeklyAppointments(baseAppointment, weeklyDays));
                     break;
                 case ONLY:
+                    baseAppointment.setSeriesId(null);
                     appointments.add(baseAppointment);
                     break;
             }
@@ -153,6 +154,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setCreatorName(UserContext.getUser().getUsername());
         appointment.setUpdatorId(UserContext.getUser().getUserId());
         appointment.setUpdatorName(UserContext.getUser().getUsername());
+        appointment.setSeriesId(String.valueOf(UUID.randomUUID()));
 
         User currentUser = userRepository.findById(UserContext.getUser().getUserId())
                 .orElseThrow(() -> new UserNotFoundException("Current user not found"));
@@ -189,6 +191,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                     currentDate,
                     baseAppointment.getStartTime(),
                     baseAppointment.getEndTime(),
+                    baseAppointment.getSeriesId(),
                     errors
             );
 
@@ -232,6 +235,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                         currentDate,
                         baseAppointment.getStartTime(),
                         baseAppointment.getEndTime(),
+                        baseAppointment.getSeriesId(),
                         errors
                 );
 
@@ -320,9 +324,9 @@ public class AppointmentServiceImpl implements AppointmentService {
         validateRecurrence(appointmentDto, date,recurrenceEndDate,recurrencePattern,errors);
 
         // Check for conflicts only if no other errors
-        if (errors.isEmpty()) {
-            checkForConflicts(appointmentDto.getRoomId(), date, startTime, endTime, errors);
-        }
+//        if (errors.isEmpty()) {
+//            checkForConflicts(appointmentDto.getRoomId(), date, startTime, endTime, errors);
+//        }
         if (appointmentDto.getUpdaterSelection() != null) {
             if (!appointmentDto.getUpdaterSelection().equals(1) && !appointmentDto.getUpdaterSelection().equals(2)) {
                 errors.put("updaterSelection", "Invalid selection");
@@ -417,16 +421,32 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
     }
 
-    private void checkForConflicts(int roomId, LocalDate date, LocalTime startTime, LocalTime endTime,
+    private void checkForConflicts(int roomId, LocalDate date,
+                                   LocalTime startTime, LocalTime endTime,
+                                   String currentSeriesId,
                                    Map<String, String> errors) {
+        // Find conflicting appointments
         List<Appointment> existingAppointments = appointmentRepository
                 .findConflictingAppointments(roomId, date, startTime, endTime);
 
-        boolean hasConflict = existingAppointments.stream()
-                .anyMatch(existing -> isTimeOverlap(startTime, endTime,
-                        existing.getStartTime(), existing.getEndTime()));
+        // Filter out conflicts
+        List<Appointment> actualConflicts = existingAppointments.stream()
+                .filter(existing -> {
+                    // Ignore appointments in the same series
+                    if (currentSeriesId != null &&
+                            existing.getSeriesId() != null &&
+                            currentSeriesId.equals(existing.getSeriesId())) {
+                        return false;
+                    }
 
-        if (hasConflict) {
+                    // Check for actual time overlap
+                    return isTimeOverlap(startTime, endTime,
+                            existing.getStartTime(), existing.getEndTime());
+                })
+                .toList();
+
+        // If there are actual conflicts, add error
+        if (!actualConflicts.isEmpty()) {
             errors.put("date", "Conflict with existing appointment");
         }
     }
@@ -539,6 +559,19 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     private Appointment updateSingleAppointment(Appointment appointment, RequestAppointmentDto requestAppointmentDto, User currentUser) {
         try {
+            List<Appointment> appointmentList=appointmentRepository.findConflictingAppointments(requestAppointmentDto.getRoomId(), LocalDate.parse(requestAppointmentDto.getDate()),LocalTime.parse(requestAppointmentDto.getStartTime()),LocalTime.parse(requestAppointmentDto.getEndTime()));
+            List<Appointment> actualConflicts = appointmentList.stream()
+                    .filter(existing -> {
+                        // Check for actual time overlap
+                        return isTimeOverlap(LocalTime.parse(requestAppointmentDto.getStartTime()), LocalTime.parse(requestAppointmentDto.getEndTime()),
+                                existing.getStartTime(), existing.getEndTime());
+                    })
+                    .toList();
+
+            // If there are actual conflicts, add error
+            if (actualConflicts.size()>1) {
+                throw new AppointmentValidationException("Conflict with existing appointment");
+            }
             // Copy properties from DTO to entity
             BeanUtils.copyProperties(requestAppointmentDto, appointment);
 
