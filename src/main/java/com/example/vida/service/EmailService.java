@@ -27,9 +27,9 @@ public class EmailService {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true);
-
-            helper.setFrom(fromEmail);
-            helper.setTo("nguyenlong18022004@gmail.com");
+//            helper.setFrom(fromEmail);
+            helper.setFrom("nguyenlong28022004@gmail.com","Test sending email");
+            helper.setTo("nguyenlongdang76@gmail.com");
             helper.setSubject("New Appointment Created");
 
             String emailContent = buildEmailContent(appointment, requestDto);
@@ -57,7 +57,6 @@ public class EmailService {
                     <li>Content Brief: %s</li>
                     <li>Recurrence Pattern: %s</li>
                     <li>Recurrence End Date: %s</li>
-                    <li>Weekly Days: %s</li>
                 </ul>
             </body>
             </html>
@@ -69,8 +68,7 @@ public class EmailService {
                 requestDto.getEndTime(),
                 requestDto.getContentBrief(),
                 requestDto.getRecurrencePattern(),
-                requestDto.getRecurrenceEndDate(),
-                String.join(", ", requestDto.getWeeklyDays())
+                requestDto.getRecurrenceEndDate()
         );
     }
 }

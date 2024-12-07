@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
 @Data
@@ -47,16 +46,4 @@ public class RequestAppointmentDto {
 
     private Integer updaterSelection;
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        RequestAppointmentDto that = (RequestAppointmentDto) o;
-        return Objects.equals(title, that.title) && Objects.equals(seriesId, that.seriesId) && Objects.equals(roomId, that.roomId) && Objects.equals(date, that.date) && Objects.equals(startTime, that.startTime) && Objects.equals(endTime, that.endTime) && Objects.equals(contentBrief, that.contentBrief) && Objects.equals(recurrencePattern, that.recurrencePattern) && Objects.equals(recurrenceEndDate, that.recurrenceEndDate) && Objects.equals(userIds, that.userIds) && Objects.equals(weeklyDays, that.weeklyDays) && Objects.equals(updaterSelection, that.updaterSelection);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(title, seriesId, roomId, date, startTime, endTime, contentBrief, recurrencePattern, recurrenceEndDate, userIds, weeklyDays, updaterSelection);
-    }
 }
