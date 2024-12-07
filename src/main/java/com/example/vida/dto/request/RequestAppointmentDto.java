@@ -1,6 +1,5 @@
 package com.example.vida.dto.request;
 
-import io.micrometer.common.lang.Nullable;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -18,6 +17,8 @@ public class RequestAppointmentDto {
     @NotNull(message = "Title is required")
     @Size(max = 50, message = "Title must not exceed 50 characters")
     private String title;
+
+    private String seriesId;
 
     @NotNull(message = "Room ID is required")
     @Positive(message = "Room ID must be greater than 0")
@@ -41,7 +42,8 @@ public class RequestAppointmentDto {
 
     private Set<Integer> userIds = new HashSet<>();
 
-    private List<String> weeklyDay;
+    private List<String> weeklyDays;
 
     private Integer updaterSelection;
+
 }

@@ -1,6 +1,7 @@
 package com.example.vida.controller;
 
 import com.example.vida.dto.request.CreateRoomDto;
+import com.example.vida.dto.request.DeleteRequest;
 import com.example.vida.dto.request.RoomFilterRequest;
 import com.example.vida.dto.response.APIResponse;
 import com.example.vida.entity.Room;
@@ -11,13 +12,11 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
-import javax.naming.Binding;
 import java.util.*;
 
 @RestController
@@ -41,7 +40,7 @@ public class RoomController {
             if (!errors.isEmpty()) {
                 return APIResponse.responseBuilder(
                         errors,
-                        "Du lieu gui len khong dung dinh dang",
+                        "The data sent is not in the correct format.",
                         HttpStatus.BAD_REQUEST
                 );
             }
@@ -111,13 +110,13 @@ public class RoomController {
     }
 
     @DeleteMapping()
-    public ResponseEntity<Object> deleteRoomsByIds(@RequestBody List<Integer> ids) {
-        if (ids == null || ids.isEmpty()) {
-            return APIResponse.responseBuilder(null, "Dữ liệu gửi lên không đúng định dạng", HttpStatus.BAD_REQUEST);
+    public ResponseEntity<Object> deleteRoomsByIds(@RequestBody DeleteRequest request) {
+        if (request.getIds() == null || request.getIds().isEmpty()) {
+            return APIResponse.responseBuilder(null, "The data sent is not in the correct format.", HttpStatus.BAD_REQUEST);
         }
 
         try {
-            roomService.deleteRoomsByIds(ids);
+            roomService.deleteRoomsByIds(request);
             return APIResponse.responseBuilder(null, "Rooms deleted successfully", HttpStatus.OK);
         } catch (EntityNotFoundException e) {
             return APIResponse.responseBuilder(null, "Some rooms not found", HttpStatus.NOT_FOUND);

@@ -1,14 +1,13 @@
 package com.example.vida.controller;
 
+import com.example.vida.dto.request.DeleteRequest;
 import com.example.vida.dto.request.RequestAppointmentDto;
 import com.example.vida.dto.response.APIResponse;
 import com.example.vida.dto.response.UnavailableTimeSlotDTO;
 import com.example.vida.entity.Appointment;
-import com.example.vida.exception.AppointmentNotFoundException;
-import com.example.vida.exception.ConflictException;
-import com.example.vida.exception.RoomNotFoundException;
-import com.example.vida.exception.ValidationException;
+import com.example.vida.exception.*;
 import com.example.vida.service.AppointmentService;
+import com.example.vida.service.EmailService;
 import io.micrometer.common.lang.Nullable;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +28,9 @@ public class AppointmentController {
 
     @Autowired
     private AppointmentService appointmentService;
+
+    @Autowired
+    private EmailService mailSender;
 
     @PostMapping
     public ResponseEntity<Object> createAppointment(
@@ -70,10 +72,13 @@ public class AppointmentController {
         // Xử lý tạo appointment nếu không có lỗi
         try {
             Appointment appointment = appointmentService.createAppointment(requestAppointmentDto);
+            // Send email notification
+            mailSender.sendAppointmentNotification(appointment, requestAppointmentDto);
+
             return APIResponse.responseBuilder(
                     appointment,
                     "Appointment created successfully",
-                    HttpStatus.CREATED
+                    HttpStatus.OK
             );
         } catch (RoomNotFoundException e){
             return APIResponse.responseBuilder(
@@ -100,15 +105,15 @@ public class AppointmentController {
     @GetMapping()
     public ResponseEntity<Object> searchAppointments(@RequestParam @Nullable String searchText,
                                                     @RequestParam @Nullable Integer roomId,
-                                                    @RequestParam(defaultValue = "1") Integer page,
-                                                    @RequestParam(defaultValue = "10") Integer size,
+                                                    @RequestParam(defaultValue = "1") Integer pageNo,
+                                                    @RequestParam(defaultValue = "10") Integer pageSize,
                                                     @RequestParam @Nullable Integer userId) {
         try {
-            if(page<=0&&size<=0) {
-                page = 1;
-                size = 1;
+            if(pageNo<=0&&pageSize<=0) {
+                pageNo = 1;
+                pageSize = 1;
             }
-            Map<String, Object> mapAppointment = appointmentService.searchAppointmentByTitle(searchText, roomId, page, size, userId);
+            Map<String, Object> mapAppointment = appointmentService.searchAppointmentByTitle(searchText, roomId, pageNo, pageSize, userId);
             return APIResponse.responseBuilder(mapAppointment, null, HttpStatus.OK);
         } catch (Exception e) {
             return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
@@ -148,6 +153,8 @@ public class AppointmentController {
         }
         try{
             Appointment appointment = appointmentService.updateAppointment(id, requestAppointmentDto);
+            // Send email notification
+            mailSender.sendAppointmentNotification(appointment, requestAppointmentDto);
             return APIResponse.responseBuilder(
                     appointment,
                     "Appointment update successfully",
@@ -160,7 +167,13 @@ public class AppointmentController {
                     e.getMessage(),
                     HttpStatus.NOT_FOUND
             );
-        } catch (RoomNotFoundException e){
+        }catch (AppointmentValidationException e) {
+            return APIResponse.responseBuilder(
+                    null,
+                    e.getMessage(),
+                    HttpStatus.BAD_REQUEST
+            );}
+        catch (RoomNotFoundException e){
             return APIResponse.responseBuilder(
                     null,
                     "Room not found",
@@ -182,16 +195,13 @@ public class AppointmentController {
         }
     }
     @DeleteMapping()
-    public ResponseEntity<Object> deleteAppointments(@RequestBody List<Integer> ids) {
+    public ResponseEntity<Object> deleteAppointments(@RequestBody DeleteRequest request) {
         try {
-            if(ids.isEmpty()){
-                return APIResponse.responseBuilder(
-                        null,
-                        "Id is required",
-                        HttpStatus.BAD_REQUEST
-                );
+            if (request.getIds() == null || request.getIds().isEmpty()) {
+                return APIResponse.responseBuilder(null, "The data sent is not in the correct format.", HttpStatus.BAD_REQUEST);
             }
-            appointmentService.deleteAppointments(ids);
+
+            appointmentService.deleteAppointments(request);
             return APIResponse.responseBuilder(
                     null,
                     "Appointments deleted successfully",

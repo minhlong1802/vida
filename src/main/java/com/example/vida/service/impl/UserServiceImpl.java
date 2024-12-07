@@ -1,12 +1,12 @@
 package com.example.vida.service.impl;
 
 import com.example.vida.dto.request.CreateUserDto;
-import com.example.vida.dto.request.UpdateUserDto;
+import com.example.vida.dto.request.DeleteRequest;
 import com.example.vida.entity.Company;
 import com.example.vida.entity.Department;
 import com.example.vida.entity.User;
+import com.example.vida.exception.UpdateUserValidationException;
 import com.example.vida.exception.UserNotFoundException;
-import com.example.vida.exception.UserValidationException;
 import com.example.vida.exception.ValidationException;
 import com.example.vida.repository.CompanyRepository;
 import com.example.vida.repository.DepartmentRepository;
@@ -17,7 +17,12 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Valid;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,10 +32,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
+import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -61,10 +68,10 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User createUser(CreateUserDto createUserDto) {
-        validateNewUser(createUserDto);
 
         User user = new User();
         BeanUtils.copyProperties(createUserDto, user);
+        user.setStatus(1);
         user.setPassword(generatePassword(createUserDto));
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
@@ -88,20 +95,7 @@ public class UserServiceImpl implements UserService {
         return formattedDob;
     }
 
-    private void validateNewUser(CreateUserDto createUserDto) {
-//        if (!isValidEmail(createUserDto.getEmail())) {
-//            throw new UserValidationException("Invalid email format");
-//        }
-        if (userRepository.existsByUsername(createUserDto.getUsername())) {
-            throw new UserValidationException("Username already exists");
-        }
-        if (userRepository.existsByEmail(createUserDto.getEmail())) {
-            throw new UserValidationException("Email already exists");
-        }
-        if (!isValidPhoneNumber(createUserDto.getPhoneNumber())) {
-            throw new UserValidationException("Invalid phone number format");
-        }
-    }
+
 
 
 
@@ -118,8 +112,10 @@ public class UserServiceImpl implements UserService {
     public User updateUser(Integer id, CreateUserDto createUserDto) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
-
-        updateUserFromRequest(user, createUserDto);
+        Map<String,String> updateErrors = updateUserFromRequest(user, createUserDto);
+        if (!updateErrors.isEmpty()){
+            throw new UpdateUserValidationException(updateErrors);
+        }
 
         user.setUpdatedAt(LocalDateTime.now());
         user.setUpdatorId(UserContext.getUser().getUserId()); // Assuming the updator ID is 1, you might want to get this from authenticated user
@@ -148,7 +144,8 @@ public class UserServiceImpl implements UserService {
         return user;
     }
 
-    public void deleteUsers(List<Integer> ids) throws UserNotFoundException {
+    public void deleteUsers(DeleteRequest request) throws UserNotFoundException {
+        List<Integer> ids = request.getIds();
         List<Integer> notFoundIds = new ArrayList<>();
         List<Integer> existingIds = new ArrayList<>();
 
@@ -159,46 +156,247 @@ public class UserServiceImpl implements UserService {
                 existingIds.add(id);
             }
         }
+
         if (!notFoundIds.isEmpty()) {
             throw new UserNotFoundException("Users not found with ids: " + notFoundIds);
         }
+
         userRepository.deleteAllById(existingIds);
     }
 
     @Override
-    public Map<String, String> validateUserData(CreateUserDto createUserDto) {
+    public Map<String, String> validateUserData(@Valid CreateUserDto createUserDto, String mode) {
         Map<String, String> errors = new HashMap<>();
 
         if (!isValidPhoneNumber(createUserDto.getPhoneNumber())) {
             errors.put("phoneNumber", "Invalid phone number format");
         }
+        if (mode.equals("create")){
+            if (userRepository.existsByUsername(createUserDto.getUsername())) {
+                errors.put("username", "Username already exists");
+            }
 
-        if (userRepository.existsByUsername(createUserDto.getUsername())) {
-            errors.put("username", "Username already exists");
-        }
-
-        if (userRepository.existsByEmail(createUserDto.getEmail())) {
-            errors.put("email", "Email already exists");
+            if (userRepository.existsByEmail(createUserDto.getEmail())) {
+                errors.put("email", "Email already exists");
+            }
         }
         return errors;
     }
 
+    public boolean isValidExcelFile(MultipartFile file) {
+        return Objects.equals(file.getContentType(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" );
+    }
+
     @Override
-    public Map<String, String> validateUpdateUserData(UpdateUserDto updateUserDto) {
-        Map<String, String> errors = new HashMap<>();
-
-        if (!isValidPhoneNumber(updateUserDto.getPhoneNumber())) {
-            errors.put("phoneNumber", "Invalid phone number format");
+    public Object saveUsersToDatabase(MultipartFile file) {
+        if (!isValidExcelFile(file)) {
+            HashMap<String, String> errors = new HashMap<>();
+            errors.put("error", "The file is not a valid Excel file");
+            return errors;
         }
 
-        if (userRepository.existsByUsername(updateUserDto.getUsername())) {
-            errors.put("username", "Username already exists");
-        }
+        try {
+            Object result = getUsersDataFromExcel(file.getInputStream());
 
-        if (userRepository.existsByEmail(updateUserDto.getEmail())) {
-            errors.put("email", "Email already exists");
+            if (result instanceof HashMap) {
+                Map<String, String> validationErrors = (Map<String, String>) result;
+                // Create a formatted error message from the validation errors
+                StringBuilder errorMessage = new StringBuilder("Validation errors found: \n ");
+                for (Map.Entry<String, String> error : validationErrors.entrySet()) {
+                    errorMessage.append(error.getKey())
+                            .append(" - ")
+                            .append(error.getValue())
+                            .append("\n");
+                }
+                return validationErrors;
+            }
+
+            if (result instanceof List) {
+                List<User> users = (List<User>) result;
+                if (users.isEmpty()) {
+                    HashMap<String, String> errors = new HashMap<>();
+                    errors.put("error", "No valid users found in the Excel file");
+                    return errors;
+                }
+                return null;
+                // No need to call saveAll since the getUsersDataFromExcel now handles the saving
+            }
+
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Failed to read the Excel file: " + e.getMessage());
+        } catch (ValidationException e) {
+            throw e;  // Rethrow validation exceptions
+        } catch (Exception e) {
+            throw new RuntimeException("An error occurred while processing the Excel file: " + e.getMessage());
         }
-        return errors;
+        return null;
+    }
+
+    public static boolean isRowEmpty(Row row) {
+        for (int cellNum = row.getFirstCellNum(); cellNum < row.getLastCellNum(); cellNum++) {
+            Cell cell = row.getCell(cellNum);
+            if (cell != null && cell.getCellType() != CellType.BLANK) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public Object getUsersDataFromExcel(InputStream inputStream) {
+        List<User> users = new ArrayList<>();
+        Map<String, String> validationErrors = new LinkedHashMap<>();
+
+        try {
+            XSSFWorkbook workbook = new XSSFWorkbook(inputStream);
+            XSSFSheet sheet = workbook.getSheet("user");
+            int rowIndex = 0;
+
+            for (Row row : sheet) {
+                if (rowIndex == 0) {
+                    rowIndex++;
+                    continue;
+                }
+                if (isRowEmpty(row)) {
+                    break;
+                }
+
+
+
+                User user = new User();
+                CreateUserDto createUserDto = new CreateUserDto();
+                Iterator<Cell> cellIterator = row.iterator();
+                int cellIndex = 0;
+
+                while (cellIterator.hasNext()) {
+                    Cell cell = cellIterator.next();
+                    switch (cellIndex) {
+                        case 0 -> {
+                            String userName = cell.getStringCellValue();
+                            user.setUsername(userName);
+                            createUserDto.setUsername(userName);
+                        }
+                        case 1 -> {
+                            String email = cell.getStringCellValue();
+                            user.setEmail(email);
+                            createUserDto.setEmail(email);
+                        }
+                        case 2 -> {
+                            String departmentName = cell.getStringCellValue();
+                            List<Department> departments = departmentRepository.findByName(departmentName);
+                            Department department = null;
+                            if (!CollectionUtils.isEmpty(departments)) {
+                                department = departments.get(0);
+                            }
+                            user.setDepartment(department);
+                        }
+                        case 3 -> {
+                            LocalDate dob = cell.getLocalDateTimeCellValue().toLocalDate();
+                            user.setDob(dob);
+                            createUserDto.setDob(dob);
+                        }
+                        case 4 -> {
+                            String phoneNumber = cell.getStringCellValue();
+                            user.setPhoneNumber(phoneNumber);
+                            createUserDto.setPhoneNumber(phoneNumber);
+                        }
+                        case 5 -> {
+                            String gender = cell.getStringCellValue();
+                            user.setGender(gender);
+                            createUserDto.setGender(gender);
+                        }
+                        case 6 -> {
+                            String employeeId = cell.getStringCellValue();
+                            user.setEmployeeId(employeeId);
+                            createUserDto.setEmployeeId(employeeId);
+                        }
+                        case 7 -> {
+                            String cardId = cell.getStringCellValue();
+                            user.setCardId(cardId);
+                            createUserDto.setCardId(cardId);
+                        }
+                    }
+                    cellIndex++;
+                }
+
+                // Validate the data using all constraints from CreateUserDto
+                Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
+                Set<ConstraintViolation<CreateUserDto>> violations = validator.validate(createUserDto);
+
+                if (!violations.isEmpty()) {
+                    StringBuilder errorMessage = new StringBuilder();
+                    for (ConstraintViolation<CreateUserDto> violation : violations) {
+                        errorMessage.append(violation.getPropertyPath())
+                                .append(": ")
+                                .append(violation.getMessage())
+                                .append("; ");
+                    }
+                    validationErrors.put("Row " + (rowIndex + 1), errorMessage.toString());
+                }
+
+                // Additional custom validations
+                Map<String, String> customErrors = validateUserData(createUserDto,"import");
+                if (!customErrors.isEmpty()) {
+                    String existingError = validationErrors.get("Row " + (rowIndex + 1));
+                    StringBuilder errorMessage = new StringBuilder(existingError != null ? existingError : "");
+
+                    for (Map.Entry<String, String> error : customErrors.entrySet()) {
+                        errorMessage.append(error.getKey())
+                                .append(": ")
+                                .append(error.getValue())
+                                .append("; ");
+                    }
+                    validationErrors.put("Row " + (rowIndex + 1), errorMessage.toString());
+                }
+
+                if (validationErrors.isEmpty()) {
+                    user.setPassword(generatePassword(createUserDto));
+                    user.setStatus(1);
+                    user.setCreatedAt(LocalDateTime.now());
+                    user.setUpdatedAt(LocalDateTime.now());
+                    user.setCreatorId(UserContext.getUser().getUserId());
+                    user.setUpdatorId(UserContext.getUser().getUserId());
+                    user.setCreatorName(UserContext.getUser().getUsername());
+                    user.setUpdatorName(UserContext.getUser().getUsername());
+                    users.add(user);
+                }
+
+                rowIndex++;
+            }
+
+            // If there are any validation errors, return them
+            if (!validationErrors.isEmpty()) {
+                return validationErrors;
+            }
+
+            // Update existing users and add new ones
+            for (User user : users) {
+                List<User> existingUsers = userRepository.findByUsernameOrEmail(
+                        user.getUsername(), user.getEmail()
+                );
+                if (existingUsers.size() > 1) {
+                    return new HashMap<String, String>() {{
+                        put("error", "Duplicate user information");
+                    }};
+                }
+                User existingUser = CollectionUtils.isEmpty(existingUsers)? null : existingUsers.get(0);
+                if (existingUser != null) {
+                    // Update existing user
+                    user.setId(existingUser.getId()); // Preserve the ID
+                    userRepository.save(user);
+                } else {
+                    // Add new user
+                    userRepository.save(user);
+                }
+            }
+
+            return users;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new HashMap<String, String>() {{
+                put("error", "Failed to process Excel file: " + e.getMessage());
+            }};
+        }
     }
 
     @Override
@@ -364,9 +562,32 @@ public class UserServiceImpl implements UserService {
     }
 
 
-    private void updateUserFromRequest(User user, CreateUserDto createUserDto) {
-        if (createUserDto.getUsername() != null) user.setUsername(createUserDto.getUsername());
-        if (createUserDto.getEmail() != null) user.setEmail(createUserDto.getEmail());
+    private Map<String, String> updateUserFromRequest(User user, CreateUserDto createUserDto) {
+        Map<String, String> updateErrors = new HashMap<String, String>();        // For username update
+        if (createUserDto.getUsername() != null) {
+            // Only validate and update if username is actually different
+            if (!createUserDto.getUsername().equals(user.getUsername())) {
+                // Check if new username exists for any other user
+                if (userRepository.existsByUsernameAndIdNot(createUserDto.getUsername(), user.getId())) {
+                    updateErrors.put("username", "Username already exists");
+                }
+                user.setUsername(createUserDto.getUsername());
+            }
+        }
+
+        // For email update
+        if (createUserDto.getEmail() != null) {
+            // Only validate and update if email is actually different
+            if (!createUserDto.getEmail().equals(user.getEmail())) {
+                // Check if new email exists for any other user
+                if (userRepository.existsByEmailAndIdNot(createUserDto.getEmail(), user.getId())) {
+                    updateErrors.put("email", "Email already exists");
+                }
+                user.setEmail(createUserDto.getEmail());
+            }
+        }
+
+        // Rest of the fields remain the same
         if (createUserDto.getDepartmentId() != null) {
 
             //tim trong db ban ghi department vs id la request.getDepartmentId()
@@ -375,11 +596,31 @@ public class UserServiceImpl implements UserService {
         }
         if (createUserDto.getStatus() != null) user.setStatus(createUserDto.getStatus());
         if (createUserDto.getDob() != null) user.setDob(createUserDto.getDob());
-        if (createUserDto.getPhoneNumber() != null) user.setPhoneNumber(createUserDto.getPhoneNumber());
+        if (createUserDto.getPhoneNumber() != null) {
+            if (!createUserDto.getPhoneNumber().equals(user.getPhoneNumber())) {
+                if (userRepository.existsByPhoneNumberAndIdNot(createUserDto.getPhoneNumber(), user.getId())){
+                    updateErrors.put("phonenumber", "Phonenumber already exists");
+                }
+            }
+            user.setPhoneNumber(createUserDto.getPhoneNumber());
+        }
         if (createUserDto.getGender() != null) user.setGender(createUserDto.getGender());
-        if (createUserDto.getEmployeeId() != null) user.setEmployeeId(createUserDto.getEmployeeId());
-        if (createUserDto.getCardId() != null) user.setCardId(createUserDto.getCardId());
+        if (createUserDto.getEmployeeId() != null) {
+            if (!createUserDto.getEmployeeId().equals(user.getEmployeeId())) {
+                if (userRepository.existsByEmployeeIdAndIdNot(createUserDto.getEmployeeId(), user.getId())){
+                    updateErrors.put("employeeCode", "Employee Code already exists");
+                }
+            }
+            user.setEmployeeId(createUserDto.getEmployeeId());
+        }
+        if (createUserDto.getCardId() != null) {
+            if (!createUserDto.getCardId().equals(user.getCardId())) {
+                if (userRepository.existsByCardIdAndIdNot(createUserDto.getCardId(), user.getId())){
+                    updateErrors.put("CardId", "CardId already exists");
+                }
+            }
+            user.setCardId(createUserDto.getCardId());
+        }
+        return updateErrors;
     }
-
-
 }

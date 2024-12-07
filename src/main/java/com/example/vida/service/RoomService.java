@@ -1,11 +1,11 @@
 package com.example.vida.service;
 
 import com.example.vida.dto.request.CreateRoomDto;
+import com.example.vida.dto.request.DeleteRequest;
 import com.example.vida.dto.request.RoomFilterRequest;
 import com.example.vida.entity.Room;
-import org.springframework.validation.BindingResult;
+import com.example.vida.exception.RoomNotFoundException;
 
-import java.util.List;
 import java.util.Map;
 
 public interface RoomService {
@@ -18,5 +18,5 @@ public interface RoomService {
 
     Room getRoomDetail(Integer id);
 
-    void deleteRoomsByIds(List<Integer> ids);
+    void deleteRoomsByIds(DeleteRequest request) throws RoomNotFoundException;
 }
