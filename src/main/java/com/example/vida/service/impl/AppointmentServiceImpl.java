@@ -118,7 +118,6 @@ public class AppointmentServiceImpl implements AppointmentService {
                     appointments.addAll(createWeeklyAppointments(baseAppointment, weeklyDays));
                     break;
                 case ONLY:
-                    baseAppointment.setSeriesId(null);
                     appointments.add(baseAppointment);
                     break;
             }
@@ -559,33 +558,43 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     private Appointment updateSingleAppointment(Appointment appointment, RequestAppointmentDto requestAppointmentDto, User currentUser) {
         try {
-            List<Appointment> appointmentList=appointmentRepository.findConflictingAppointments(requestAppointmentDto.getRoomId(), LocalDate.parse(requestAppointmentDto.getDate()),LocalTime.parse(requestAppointmentDto.getStartTime()),LocalTime.parse(requestAppointmentDto.getEndTime()));
-            List<Appointment> actualConflicts = appointmentList.stream()
-                    .filter(existing -> {
-                        // Check for actual time overlap
-                        return isTimeOverlap(LocalTime.parse(requestAppointmentDto.getStartTime()), LocalTime.parse(requestAppointmentDto.getEndTime()),
-                                existing.getStartTime(), existing.getEndTime());
-                    })
+            // Parse new date and time fields from the request
+            LocalDate newDate = LocalDate.parse(requestAppointmentDto.getDate());
+            LocalTime newStartTime = LocalTime.parse(requestAppointmentDto.getStartTime());
+            LocalTime newEndTime = LocalTime.parse(requestAppointmentDto.getEndTime());
+            Integer newRoomId = requestAppointmentDto.getRoomId();
+
+            // Retrieve conflicting appointments, ignoring the current appointment being updated
+            List<Appointment> appointmentList = appointmentRepository.findConflictingAppointments(
+                            newRoomId, newDate, newStartTime, newEndTime
+                    ).stream()
+                    .filter(existing -> !existing.getId().equals(appointment.getId())) // Exclude the current appointment
                     .toList();
 
-            // If there are actual conflicts, add error
-            if (actualConflicts.size()>1) {
+            // Further filter for actual conflicts using time overlap logic
+            List<Appointment> actualConflicts = appointmentList.stream()
+                    .filter(existing -> isTimeOverlap(newStartTime, newEndTime, existing.getStartTime(), existing.getEndTime()))
+                    .toList();
+
+            // If there are any actual conflicts, throw an exception
+            if (!actualConflicts.isEmpty()) {
                 throw new AppointmentValidationException("Conflict with existing appointment");
             }
+
             // Copy properties from DTO to entity
             BeanUtils.copyProperties(requestAppointmentDto, appointment);
 
             // Update room if provided
-            if (requestAppointmentDto.getRoomId() != null) {
-                Room room = roomRepository.findById(requestAppointmentDto.getRoomId())
+            if (newRoomId != null) {
+                Room room = roomRepository.findById(newRoomId)
                         .orElseThrow(() -> new RoomNotFoundException("Room not found"));
                 appointment.setRoom(room);
             }
 
             // Set date and time fields
-            appointment.setDate(LocalDate.parse(requestAppointmentDto.getDate()));
-            appointment.setStartTime(LocalTime.parse(requestAppointmentDto.getStartTime()));
-            appointment.setEndTime(LocalTime.parse(requestAppointmentDto.getEndTime()));
+            appointment.setDate(newDate);
+            appointment.setStartTime(newStartTime);
+            appointment.setEndTime(newEndTime);
             appointment.setRecurrenceEndDate(LocalDate.parse(requestAppointmentDto.getRecurrenceEndDate()));
 
             // Update audit fields
@@ -596,9 +605,9 @@ public class AppointmentServiceImpl implements AppointmentService {
 
             return appointmentRepository.save(appointment);
 
-        } catch (RoomNotFoundException e){
-            throw new RoomNotFoundException("Room with id"+requestAppointmentDto.getRoomId()+" not found");
-        }catch (Exception e) {
+        } catch (RoomNotFoundException e) {
+            throw new RoomNotFoundException("Room with id " + requestAppointmentDto.getRoomId() + " not found");
+        } catch (Exception e) {
             log.error("Error updating single appointment: {}", e.getMessage(), e);
             if (e instanceof AppointmentValidationException || e instanceof UserNotFoundException) {
                 throw e;
