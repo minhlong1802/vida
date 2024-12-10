@@ -249,7 +249,7 @@ public class UserServiceImpl implements UserService {
 
         try {
             XSSFWorkbook workbook = new XSSFWorkbook(inputStream);
-            XSSFSheet sheet = workbook.getSheet("user");
+            XSSFSheet sheet = workbook.getSheetAt(0);
             int rowIndex = 0;
 
             for (Row row : sheet) {

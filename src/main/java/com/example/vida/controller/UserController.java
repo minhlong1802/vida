@@ -161,9 +161,9 @@ public class UserController {
         }
         try {
             User createdUser = userService.createUser(createUserDto);
-            return APIResponse.responseBuilder(createdUser, "Success", HttpStatus.OK);
+            return APIResponse.responseBuilder(createdUser, "User created successfully", HttpStatus.OK);
         } catch (Exception e) {
-            return APIResponse.responseBuilder(e.getMessage(),"Error", HttpStatus.INTERNAL_SERVER_ERROR);
+            return APIResponse.responseBuilder(e.getMessage(),"Error creating user", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
     @PutMapping("api/users/{id}")
@@ -201,7 +201,7 @@ public class UserController {
         }
         try {
             User updatedUser = userService.updateUser(id, createUserDto);
-            return APIResponse.responseBuilder(updatedUser, "Success", HttpStatus.OK);
+            return APIResponse.responseBuilder(updatedUser, "User updated successfully", HttpStatus.OK);
         } catch (UserNotFoundException e) {
             return APIResponse.responseBuilder(null, e.getMessage(), HttpStatus.NOT_FOUND);
 
