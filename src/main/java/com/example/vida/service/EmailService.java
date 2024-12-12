@@ -2,6 +2,9 @@ package com.example.vida.service;
 
 import com.example.vida.dto.request.RequestAppointmentDto;
 import com.example.vida.entity.Appointment;
+import com.example.vida.entity.Room;
+import com.example.vida.exception.RoomNotFoundException;
+import com.example.vida.repository.RoomRepository;
 import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +21,9 @@ public class EmailService {
     private final String fromEmail;
 
     @Autowired
+    private RoomRepository roomRepository;
+
+    @Autowired
     public EmailService(JavaMailSender mailSender, @Value("${spring.mail.username}") String fromEmail) {
         this.mailSender = mailSender;
         this.fromEmail = fromEmail;
@@ -30,7 +36,7 @@ public class EmailService {
 
             helper.setFrom(fromEmail);
             helper.setTo("nguyenlong18022004@gmail.com");
-            helper.setSubject("New Appointment Created");
+            helper.setSubject("New Appointment assigned");
 
             String emailContent = buildEmailContent(appointment, requestDto);
             helper.setText(emailContent, true); // true indicates HTML content
@@ -43,6 +49,9 @@ public class EmailService {
     }
 
     private String buildEmailContent(Appointment appointment, RequestAppointmentDto requestDto) {
+        // Retrieve room details once
+        Room room = roomRepository.findById(requestDto.getRoomId())
+                .orElseThrow(() -> new RoomNotFoundException("Room not found for ID: " + requestDto.getRoomId()));
         return String.format("""
             <html>
             <body>
@@ -50,27 +59,23 @@ public class EmailService {
                 <p>Appointment Details:</p>
                 <ul>
                     <li>Title: %s</li>
-                    <li>Room ID: %d</li>
+                    <li>Room Name: %s</li>
+                    <li>Room Location: %s</li>
                     <li>Date: %s</li>
                     <li>Start Time: %s</li>
                     <li>End Time: %s</li>
                     <li>Content Brief: %s</li>
-                    <li>Recurrence Pattern: %s</li>
-                    <li>Recurrence End Date: %s</li>
-                    <li>Weekly Days: %s</li>
                 </ul>
             </body>
             </html>
             """,
                 requestDto.getTitle(),
-                requestDto.getRoomId(),
+                room.getName(),
+                room.getLocation(),
                 requestDto.getDate(),
                 requestDto.getStartTime(),
                 requestDto.getEndTime(),
-                requestDto.getContentBrief(),
-                requestDto.getRecurrencePattern(),
-                requestDto.getRecurrenceEndDate(),
-                String.join(", ", requestDto.getWeeklyDays())
+                requestDto.getContentBrief()
         );
     }
 }

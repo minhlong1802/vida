@@ -2,7 +2,7 @@ package com.example.vida.controller;
 
 import com.example.vida.dto.request.ChangePasswordRequest;
 import com.example.vida.dto.request.CreateUserDto;
-import com.example.vida.dto.request.DeleteUsersRequest;
+import com.example.vida.dto.request.DeleteRequest;
 import com.example.vida.dto.request.LoginRequest;
 import com.example.vida.dto.response.APIResponse;
 import com.example.vida.entity.User;
@@ -16,16 +16,13 @@ import com.example.vida.utils.JwtTokenUtils;
 import io.micrometer.common.lang.Nullable;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.sql.Update;
 import org.springframework.http.*;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -227,7 +224,7 @@ public class UserController {
     }
 
     @DeleteMapping("/api/users")
-    public ResponseEntity<Object> deleteUsers(@RequestBody DeleteUsersRequest request) {
+    public ResponseEntity<Object> deleteUsers(@RequestBody DeleteRequest request) {
         if (request.getIds() == null || request.getIds().isEmpty()) {
             return APIResponse.responseBuilder(
                     null,

@@ -1,13 +1,11 @@
 package com.example.vida.controller;
 
+import com.example.vida.dto.request.DeleteRequest;
 import com.example.vida.dto.request.RequestAppointmentDto;
 import com.example.vida.dto.response.APIResponse;
 import com.example.vida.dto.response.UnavailableTimeSlotDTO;
 import com.example.vida.entity.Appointment;
-import com.example.vida.exception.AppointmentNotFoundException;
-import com.example.vida.exception.ConflictException;
-import com.example.vida.exception.RoomNotFoundException;
-import com.example.vida.exception.ValidationException;
+import com.example.vida.exception.*;
 import com.example.vida.service.AppointmentService;
 import com.example.vida.service.EmailService;
 import io.micrometer.common.lang.Nullable;
@@ -80,7 +78,7 @@ public class AppointmentController {
             return APIResponse.responseBuilder(
                     appointment,
                     "Appointment created successfully",
-                    HttpStatus.CREATED
+                    HttpStatus.OK
             );
         } catch (RoomNotFoundException e){
             return APIResponse.responseBuilder(
@@ -169,7 +167,13 @@ public class AppointmentController {
                     e.getMessage(),
                     HttpStatus.NOT_FOUND
             );
-        } catch (RoomNotFoundException e){
+        }catch (AppointmentValidationException e) {
+            return APIResponse.responseBuilder(
+                    null,
+                    e.getMessage(),
+                    HttpStatus.BAD_REQUEST
+            );}
+        catch (RoomNotFoundException e){
             return APIResponse.responseBuilder(
                     null,
                     "Room not found",
@@ -191,16 +195,13 @@ public class AppointmentController {
         }
     }
     @DeleteMapping()
-    public ResponseEntity<Object> deleteAppointments(@RequestBody List<Integer> ids) {
+    public ResponseEntity<Object> deleteAppointments(@RequestBody DeleteRequest request) {
         try {
-            if(ids.isEmpty()){
-                return APIResponse.responseBuilder(
-                        null,
-                        "Id is required",
-                        HttpStatus.BAD_REQUEST
-                );
+            if (request.getIds() == null || request.getIds().isEmpty()) {
+                return APIResponse.responseBuilder(null, "The data sent is not in the correct format.", HttpStatus.BAD_REQUEST);
             }
-            appointmentService.deleteAppointments(ids);
+
+            appointmentService.deleteAppointments(request);
             return APIResponse.responseBuilder(
                     null,
                     "Appointments deleted successfully",
