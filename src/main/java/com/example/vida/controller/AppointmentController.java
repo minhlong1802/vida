@@ -73,7 +73,7 @@ public class AppointmentController {
         try {
             Appointment appointment = appointmentService.createAppointment(requestAppointmentDto);
             // Send email notification
-//            mailSender.sendAppointmentNotification(appointment, requestAppointmentDto);
+            mailSender.sendAppointmentNotification(appointment, requestAppointmentDto);
 
             return APIResponse.responseBuilder(
                     appointment,
@@ -154,7 +154,7 @@ public class AppointmentController {
         try{
             Appointment appointment = appointmentService.updateAppointment(id, requestAppointmentDto);
             // Send email notification
-//            mailSender.sendAppointmentNotification(appointment, requestAppointmentDto);
+            mailSender.sendAppointmentNotification(appointment, requestAppointmentDto);
             return APIResponse.responseBuilder(
                     appointment,
                     "Appointment update successfully",
