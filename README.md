@@ -1,92 +1,147 @@
-# java
+# Meeting Room Booking System (Vida)
 
+## Project Overview
 
+The Meeting Room Booking System is a comprehensive software solution designed to streamline the process of booking and managing meeting rooms within an organization. The backend of the system is built using **Spring Boot (Java)** to provide robust, scalable, and efficient services.
 
-## Getting started
+This project was developed with a focus on user management, room scheduling, and automated notifications to enhance productivity and ensure seamless meeting room management.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+---
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+## Features
 
-## Add your files
+### 1. User Management
+- Create, update, and delete user accounts.
+- Import and export user lists via CSV or Excel.
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+### 2. Room Management
+- Add, edit, and remove meeting rooms.
+- Associate rooms with specific departments for better organization.
 
-```
-cd existing_repo
-git remote add origin https://source.cmcglobal.com.vn/g3/du3.1/civams/cmc_uni/java.git
-git branch -M main
-git push -uf origin main
-```
+### 3. Department Management
+- Manage organizational departments.
+- Assign users and rooms to corresponding departments.
 
-## Integrate with your tools
+### 4. Room Booking
+- Schedule meeting room bookings with time and date.
+- Modify or cancel bookings as needed.
 
-- [ ] [Set up project integrations](https://source.cmcglobal.com.vn/g3/du3.1/civams/cmc_uni/java/-/settings/integrations)
+### 5. Notifications
+- Automated email reminders for upcoming meetings.
+- Alerts for canceled or rescheduled bookings.
 
-## Collaborate with your team
+### 6. Data Import/Export
+- Import user lists to bulk-add users to the system.
+- Export user lists for reporting or administrative purposes.
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+---
 
-## Test and Deploy
+## Tech Stack
 
-Use the built-in continuous integration in GitLab.
+### Backend
+- **Spring Boot**: Core framework for building RESTful APIs.
+- **Spring Data JPA**: For database operations.
+- **Spring Security (JWT Token)**: For authentication and authorization.
+- **Java Mail API**: For sending email notifications.
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+### Database
+- **MySQL**: Used to store all user, room, department, and booking data.
 
-***
+### Tools and Libraries
+- **Maven**: Dependency management and build automation.
+- **Lombok**: For reducing boilerplate code.
+- **Swagger**: API documentation and testing.
 
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+---
 
 ## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/minhlong1802/vida.git
+   ```
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+2. Navigate to the project directory:
+   ```bash
+   cd vida
+   ```
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+3. Configure the database:
+   - Update `application.properties` with your database connection details:
+     ```properties
+     spring.datasource.url=jdbc:mysql://localhost:3306/meeting_booking
+     spring.datasource.username=your_db_username
+     spring.datasource.password=your_db_password
+     ```
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+4. Build the project:
+   ```bash
+   mvn clean install
+   ```
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+5. Run the application:
+   ```bash
+   java -jar target/vida-0.0.1-SNAPSHOT.jar
+   ```
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+6. Access the API:
+   - Swagger UI: `http://localhost:8080/swagger-ui.html`
+   - API Base URL: `http://localhost:8080/api`
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+---
+
+## API Endpoints
+
+### User Management
+- `POST /api/users` - Add a new user.
+- `GET /api/users` - Retrieve all users.
+- `PUT /api/users/{id}` - Update user details.
+- `DELETE /api/users/{id}` - Remove a user.
+
+### Room Management
+- `POST /api/rooms` - Add a new room.
+- `GET /api/rooms` - Retrieve all rooms.
+- `PUT /api/rooms/{id}` - Update room details.
+- `DELETE /api/rooms/{id}` - Remove a room.
+
+### Booking Management
+- `POST /api/bookings` - Create a new booking.
+- `GET /api/bookings` - Retrieve all bookings.
+- `PUT /api/bookings/{id}` - Modify an existing booking.
+- `DELETE /api/bookings/{id}` - Cancel a booking.
+
+---
+
+## Contribution
+
+If you would like to contribute to this project:
+1. Fork the repository.
+2. Create a new branch for your feature or bug fix.
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+3. Commit your changes and push to your branch.
+   ```bash
+   git commit -m "Add your message here"
+   git push origin feature/your-feature-name
+   ```
+4. Create a pull request.
+
+---
+
+## Contact
+
+If you have any questions or need assistance, feel free to contact me:
+- **Email**: minhlong1802@example.com
+- **GitHub**: [minhlong1802](https://github.com/minhlong1802)
+
+---
 
 ## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+
 For open source projects, say how it is licensed.
 
 ## Project status
